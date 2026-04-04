@@ -1,0 +1,57 @@
+# Default ignored files
+/shelf/
+/workspace.xml
+# Ignored default folder with query files
+/queries/
+# Datasource local storage ignored files
+/dataSources/
+/dataSources.local.xml
+# Editor-based HTTP Client requests
+/httpRequests/
+/vcs.xml
+/modules.xml
+/don.iml
+# --- Binaries and Executables ---
+# Compiled results
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Main output binary (adjust if you name your binary differently)
+bin/
+out/
+dist/
+
+# --- Go Specifics ---
+# Dependency directories
+# (Vendoring is optional in modern Go, but keep it ignored if you don't check it in)
+vendor/
+
+# Go test coverage files
+*.out
+*.prof
+*.test
+
+# --- GoLand / JetBrains ---
+# Covers GoLand settings, run configurations, and local history
+.idea/
+*.iml
+cmake-build-*/
+out/
+
+# --- Environment and Secrets ---
+# Never commit credentials or local overrides
+.env
+.env.local
+.env.*.local
+
+# --- OS Specifics ---
+.DS_Store
+Thumbs.db
+*.swp
+
+# --- Tools and Plugins ---
+# If using air for live reloading
+tmp/
