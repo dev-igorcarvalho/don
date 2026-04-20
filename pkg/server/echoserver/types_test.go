@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/labstack/echo/v4"
+	"github.com/stretchr/testify/assert"
 )
 
 // mockHandler is a dummy implementation of the Handler interface for testing.
@@ -25,18 +26,10 @@ func TestNewRoute(t *testing.T) {
 
 	route := NewRoute(method, path, handler, middleware...)
 
-	if route.method != method {
-		t.Errorf("expected method %s, got %s", method, route.method)
-	}
-	if route.path != path {
-		t.Errorf("expected path %s, got %s", path, route.path)
-	}
-	if route.handler != handler {
-		t.Errorf("expected handler %p, got %p", handler, route.handler)
-	}
-	if len(route.middleware) != len(middleware) {
-		t.Errorf("expected %d middleware, got %d", len(middleware), len(route.middleware))
-	}
+	assert.Equal(t, method, route.method)
+	assert.Equal(t, path, route.path)
+	assert.Equal(t, handler, route.handler)
+	assert.Len(t, route.middleware, len(middleware))
 }
 
 func TestNewGroup(t *testing.T) {
@@ -49,15 +42,9 @@ func TestNewGroup(t *testing.T) {
 
 	group := NewGroup(prefix, middleware...)
 
-	if group.prefix != prefix {
-		t.Errorf("expected prefix %s, got %s", prefix, group.prefix)
-	}
-	if len(group.middleware) != len(middleware) {
-		t.Errorf("expected %d middleware, got %d", len(middleware), len(group.middleware))
-	}
-	if len(group.routes) != 0 {
-		t.Errorf("expected 0 routes, got %d", len(group.routes))
-	}
+	assert.Equal(t, prefix, group.prefix)
+	assert.Len(t, group.middleware, len(middleware))
+	assert.Empty(t, group.routes)
 }
 
 func TestGroup_AddRoutes(t *testing.T) {
@@ -67,21 +54,13 @@ func TestGroup_AddRoutes(t *testing.T) {
 
 	group.AddRoutes(route1, route2)
 
-	if len(group.routes) != 2 {
-		t.Errorf("expected 2 routes, got %d", len(group.routes))
-	}
-	if group.routes[0] != route1 {
-		t.Errorf("expected first route to be route1")
-	}
-	if group.routes[1] != route2 {
-		t.Errorf("expected second route to be route2")
-	}
+	assert.Len(t, group.routes, 2)
+	assert.Equal(t, route1, group.routes[0])
+	assert.Equal(t, route2, group.routes[1])
 
 	// Test method chaining
 	route3 := NewRoute("GET", "/status", &mockHandler{})
 	group.AddRoutes(route3)
 
-	if len(group.routes) != 3 {
-		t.Errorf("expected 3 routes, got %d", len(group.routes))
-	}
+	assert.Len(t, group.routes, 3)
 }

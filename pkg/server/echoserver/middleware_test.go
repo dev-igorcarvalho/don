@@ -9,6 +9,8 @@ import (
 	"testing"
 
 	"github.com/labstack/echo/v4"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestLoggerMiddleware(t *testing.T) {
@@ -21,70 +23,48 @@ func TestLoggerMiddleware(t *testing.T) {
 	handler := slog.NewJSONHandler(&buf, nil)
 	logger := slog.New(handler)
 
-	// Set as default for the test
 	oldLogger := slog.Default()
 	slog.SetDefault(logger)
 	defer slog.SetDefault(oldLogger)
 
 	t.Run("logs with base attributes and request data", func(t *testing.T) {
 		buf.Reset()
-		
+
 		mw := LoggerMiddleware(slog.String("service", "test-service"))
 		h := mw(func(c echo.Context) error {
 			return c.String(http.StatusOK, "ok")
 		})
 
 		err := h(c)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		assert.NoError(t, err)
 
 		var logEntry map[string]interface{}
-		if err := json.Unmarshal(buf.Bytes(), &logEntry); err != nil {
-			t.Fatalf("failed to parse log output: %v", err)
-		}
+		err = json.Unmarshal(buf.Bytes(), &logEntry)
+		require.NoError(t, err)
 
-		// Check base attributes
-		if logEntry["service"] != "test-service" {
-			t.Errorf("expected service=test-service, got %v", logEntry["service"])
-		}
-
-		// Check dynamic attributes
-		if logEntry["method"] != "GET" {
-			t.Errorf("expected method=GET, got %v", logEntry["method"])
-		}
-		if logEntry["path"] != "/test-path" {
-			t.Errorf("expected path=/test-path, got %v", logEntry["path"])
-		}
-		if logEntry["status"] != float64(http.StatusOK) { // JSON unmarshals numbers as float64
-			t.Errorf("expected status=200, got %v", logEntry["status"])
-		}
-		if _, ok := logEntry["latency"]; !ok {
-			t.Error("expected latency field to exist")
-		}
+		assert.Equal(t, "test-service", logEntry["service"])
+		assert.Equal(t, "GET", logEntry["method"])
+		assert.Equal(t, "/test-path", logEntry["path"])
+		assert.Equal(t, float64(http.StatusOK), logEntry["status"])
+		assert.Contains(t, logEntry, "latency")
 	})
 
 	t.Run("logs errors with error level", func(t *testing.T) {
 		buf.Reset()
-		
+
 		mw := LoggerMiddleware()
 		h := mw(func(c echo.Context) error {
 			return echo.NewHTTPError(http.StatusBadRequest, "bad request error")
 		})
 
-		_ = h(c) // Error is handled by c.Error inside middleware
+		_ = h(c)
 
 		var logEntry map[string]interface{}
-		if err := json.Unmarshal(buf.Bytes(), &logEntry); err != nil {
-			t.Fatalf("failed to parse log output: %v", err)
-		}
+		err := json.Unmarshal(buf.Bytes(), &logEntry)
+		require.NoError(t, err)
 
-		if logEntry["level"] != "ERROR" {
-			t.Errorf("expected level=ERROR, got %v", logEntry["level"])
-		}
-		if logEntry["error"] == nil {
-			t.Error("expected error field to exist")
-		}
+		assert.Equal(t, "ERROR", logEntry["level"])
+		assert.NotNil(t, logEntry["error"])
 	})
 }
 
@@ -98,7 +78,6 @@ func TestRecoveryMiddleware(t *testing.T) {
 	handler := slog.NewJSONHandler(&buf, nil)
 	logger := slog.New(handler)
 
-	// Set as default for the test
 	oldLogger := slog.Default()
 	slog.SetDefault(logger)
 	defer slog.SetDefault(oldLogger)
@@ -111,35 +90,20 @@ func TestRecoveryMiddleware(t *testing.T) {
 			panic("something went wrong")
 		})
 
-		// Echo's default error handler will catch the error passed to c.Error
 		e.HTTPErrorHandler = DefaultErrorHandler
 
-		err := h(c)
-		if err != nil {
-			// In our middleware, we call c.Error(err) which doesn't necessarily return an error from the handler
-			// but we want to make sure the recovery worked.
-		}
+		_ = h(c)
 
-		if rec.Code != http.StatusInternalServerError {
-			t.Errorf("expected status 500, got %d", rec.Code)
-		}
+		assert.Equal(t, http.StatusInternalServerError, rec.Code)
 
 		var logEntry map[string]interface{}
-		if err := json.Unmarshal(buf.Bytes(), &logEntry); err != nil {
-			t.Fatalf("failed to parse log output: %v", err)
-		}
+		err := json.Unmarshal(buf.Bytes(), &logEntry)
+		require.NoError(t, err)
 
-		if logEntry["level"] != "ERROR" {
-			t.Errorf("expected level=ERROR, got %v", logEntry["level"])
-		}
-		if logEntry["msg"] != "panic recovered" {
-			t.Errorf("expected msg='panic recovered', got %v", logEntry["msg"])
-		}
-		if logEntry["error"] != "something went wrong" {
-			t.Errorf("expected error='something went wrong', got %v", logEntry["error"])
-		}
-		if logEntry["stack"] == nil {
-			t.Error("expected stack field to exist")
-		}
+		assert.Equal(t, "ERROR", logEntry["level"])
+		assert.Equal(t, "panic recovered", logEntry["msg"])
+		assert.Equal(t, "something went wrong", logEntry["error"])
+		assert.Contains(t, logEntry, "stack")
 	})
 }
+

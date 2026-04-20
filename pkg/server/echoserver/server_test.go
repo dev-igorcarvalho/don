@@ -8,25 +8,20 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNew(t *testing.T) {
 	t.Run("default values", func(t *testing.T) {
 		s := New()
-		if s.port != defaultPort {
-			t.Errorf("expected default port %s, got %s", defaultPort, s.port)
-		}
-		if s.app == nil {
-			t.Error("expected echo instance to be initialized")
-		}
+		assert.Equal(t, defaultPort, s.port)
+		assert.NotNil(t, s.app)
 	})
 
 	t.Run("with custom port", func(t *testing.T) {
 		customPort := "9090"
 		s := New(WithPort(customPort))
-		if s.port != customPort {
-			t.Errorf("expected port %s, got %s", customPort, s.port)
-		}
+		assert.Equal(t, customPort, s.port)
 	})
 
 	t.Run("with health check", func(t *testing.T) {
@@ -41,13 +36,8 @@ func TestNew(t *testing.T) {
 		rec := httptest.NewRecorder()
 		s.app.ServeHTTP(rec, req)
 
-		if rec.Code != http.StatusOK {
-			t.Errorf("expected status OK, got %d", rec.Code)
-		}
-		expectedBody := `{"status":"up"}` + "\n"
-		if rec.Body.String() != expectedBody {
-			t.Errorf("expected body %s, got %s", expectedBody, rec.Body.String())
-		}
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Equal(t, `{"status":"up"}`+"\n", rec.Body.String())
 	})
 
 	t.Run("with middleware", func(t *testing.T) {
@@ -61,17 +51,13 @@ func TestNew(t *testing.T) {
 		
 		s := New(WithMiddleware(mw))
 		
-		// We can't easily check if middleware was added without executing a request
-		// but we can register a route and call it.
 		s.RegisterRoutes(NewRoute("GET", "/test", &mockHandler{}))
 		
 		req := httptest.NewRequest(http.MethodGet, "/test", nil)
 		rec := httptest.NewRecorder()
 		s.app.ServeHTTP(rec, req)
 		
-		if !middlewareCalled {
-			t.Error("expected middleware to be called")
-		}
+		assert.True(t, middlewareCalled)
 	})
 }
 
@@ -92,12 +78,8 @@ func TestEchoServer_RegisterRoutes(t *testing.T) {
 	rec := httptest.NewRecorder()
 	s.app.ServeHTTP(rec, req)
 	
-	if rec.Code != http.StatusOK {
-		t.Errorf("expected status OK, got %d", rec.Code)
-	}
-	if !handlerCalled {
-		t.Error("expected handler to be called")
-	}
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.True(t, handlerCalled)
 }
 
 func TestEchoServer_RegisterGroups(t *testing.T) {
@@ -120,35 +102,26 @@ func TestEchoServer_RegisterGroups(t *testing.T) {
 	rec := httptest.NewRecorder()
 	s.app.ServeHTTP(rec, req)
 	
-	if rec.Code != http.StatusOK {
-		t.Errorf("expected status OK, got %d", rec.Code)
-	}
-	if !handlerCalled {
-		t.Error("expected handler to be called")
-	}
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.True(t, handlerCalled)
 }
 
 func TestEchoServer_Shutdown(t *testing.T) {
 	s := New()
 	
-	// Start server in background
 	go func() {
 		_ = s.Start()
 	}()
 	
-	// Give it a moment to start
 	time.Sleep(100 * time.Millisecond)
 	
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 	
 	err := s.Shutdown(ctx)
-	if err != nil {
-		t.Errorf("expected nil error on shutdown, got %v", err)
-	}
+	assert.NoError(t, err)
 }
 
-// testHandler is a helper for testing routes with a custom handle function.
 type testHandler struct {
 	handleFunc func(c echo.Context) error
 }

@@ -7,6 +7,9 @@ import (
 	"log/slog"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestEnvironment_Val(t *testing.T) {
@@ -20,9 +23,7 @@ func TestEnvironment_Val(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(string(tt.env), func(t *testing.T) {
-			if got := tt.env.Val(); got != tt.want {
-				t.Errorf("Environment.Val() = %v, want %v", got, tt.want)
-			}
+			assert.Equal(t, tt.want, tt.env.Val())
 		})
 	}
 }
@@ -32,17 +33,13 @@ func TestExtractDefaultAttributesFromContext(t *testing.T) {
 	
 	t.Run("nil context", func(t *testing.T) {
 		attrs := extractDefaultAttributesFromContext(nil, keys)
-		if len(attrs) != 0 {
-			t.Errorf("expected 0 attrs, got %d", len(attrs))
-		}
+		assert.Empty(t, attrs)
 	})
 
 	t.Run("empty keys", func(t *testing.T) {
 		ctx := context.WithValue(context.Background(), "trace_id", "123")
 		attrs := extractDefaultAttributesFromContext(ctx, []string{})
-		if len(attrs) != 0 {
-			t.Errorf("expected 0 attrs, got %d", len(attrs))
-		}
+		assert.Empty(t, attrs)
 	})
 
 	t.Run("with values", func(t *testing.T) {
@@ -50,9 +47,7 @@ func TestExtractDefaultAttributesFromContext(t *testing.T) {
 		ctx = context.WithValue(ctx, "tenant_id", "456")
 		attrs := extractDefaultAttributesFromContext(ctx, keys)
 		
-		if len(attrs) != 2 {
-			t.Fatalf("expected 2 attrs, got %d", len(attrs))
-		}
+		require.Len(t, attrs, 2)
 		
 		foundTrace := false
 		foundTenant := false
@@ -65,29 +60,20 @@ func TestExtractDefaultAttributesFromContext(t *testing.T) {
 			}
 		}
 		
-		if !foundTrace || !foundTenant {
-			t.Errorf("did not find expected attributes: trace=%v, tenant=%v", foundTrace, foundTenant)
-		}
+		assert.True(t, foundTrace, "did not find trace_id")
+		assert.True(t, foundTenant, "did not find tenant_id")
 	})
 
 	t.Run("missing values", func(t *testing.T) {
 		ctx := context.WithValue(context.Background(), "trace_id", "123")
 		attrs := extractDefaultAttributesFromContext(ctx, keys)
 		
-		if len(attrs) != 1 {
-			t.Fatalf("expected 1 attr, got %d", len(attrs))
-		}
-		if attrs[0].Key != "trace_id" {
-			t.Errorf("expected trace_id, got %s", attrs[0].Key)
-		}
+		require.Len(t, attrs, 1)
+		assert.Equal(t, "trace_id", attrs[0].Key)
 	})
 }
 
 func TestLogging(t *testing.T) {
-	// We use a buffer to capture output. 
-	// Since Setup sets the global default logger, we need to be careful with parallel tests.
-	// However, slog handlers usually take an io.Writer.
-	
 	var buf bytes.Buffer
 	
 	t.Run("Setup Sandbox (TextHandler)", func(t *testing.T) {
@@ -99,18 +85,10 @@ func TestLogging(t *testing.T) {
 		Debug(ctx, "debug message", slog.String("extra", "value"))
 		
 		output := buf.String()
-		if !strings.Contains(output, "level=DEBUG") {
-			t.Errorf("expected DEBUG level in output, got: %s", output)
-		}
-		if !strings.Contains(output, "msg=\"debug message\"") && !strings.Contains(output, "msg=debug message") {
-			t.Errorf("expected message in output, got: %s", output)
-		}
-		if !strings.Contains(output, "trace_id=test-trace") {
-			t.Errorf("expected trace_id in output, got: %s", output)
-		}
-		if !strings.Contains(output, "extra=value") {
-			t.Errorf("expected extra attribute in output, got: %s", output)
-		}
+		assert.Contains(t, output, "level=DEBUG")
+		assert.True(t, strings.Contains(output, "msg=\"debug message\"") || strings.Contains(output, "msg=debug message"))
+		assert.Contains(t, output, "trace_id=test-trace")
+		assert.Contains(t, output, "extra=value")
 	})
 
 	t.Run("Setup Production (JSONHandler)", func(t *testing.T) {
@@ -122,19 +100,12 @@ func TestLogging(t *testing.T) {
 		Info(ctx, "info message")
 		
 		var logMap map[string]interface{}
-		if err := json.Unmarshal(buf.Bytes(), &logMap); err != nil {
-			t.Fatalf("failed to unmarshal JSON log: %v", err)
-		}
+		err := json.Unmarshal(buf.Bytes(), &logMap)
+		require.NoError(t, err)
 		
-		if logMap["level"] != "INFO" {
-			t.Errorf("expected INFO level, got %v", logMap["level"])
-		}
-		if logMap["msg"] != "info message" {
-			t.Errorf("expected msg 'info message', got %v", logMap["msg"])
-		}
-		if logMap["tenant_id"] != "test-tenant" {
-			t.Errorf("expected tenant_id 'test-tenant', got %v", logMap["tenant_id"])
-		}
+		assert.Equal(t, "INFO", logMap["level"])
+		assert.Equal(t, "info message", logMap["msg"])
+		assert.Equal(t, "test-tenant", logMap["tenant_id"])
 	})
 
 	t.Run("Warn and Error", func(t *testing.T) {
@@ -146,34 +117,23 @@ func TestLogging(t *testing.T) {
 		Error(context.Background(), "error message")
 		
 		lines := strings.Split(strings.TrimSpace(buf.String()), "\n")
-		if len(lines) != 2 {
-			t.Fatalf("expected 2 log lines, got %d", len(lines))
-		}
+		require.Len(t, lines, 2)
 		
 		var log1, log2 map[string]interface{}
 		json.Unmarshal([]byte(lines[0]), &log1)
 		json.Unmarshal([]byte(lines[1]), &log2)
 		
-		if log1["level"] != "WARN" {
-			t.Errorf("expected WARN level, got %v", log1["level"])
-		}
-		if log2["level"] != "ERROR" {
-			t.Errorf("expected ERROR level, got %v", log2["level"])
-		}
+		assert.Equal(t, "WARN", log1["level"])
+		assert.Equal(t, "ERROR", log2["level"])
 	})
 }
 
 func TestSetup(t *testing.T) {
-	// Since Setup uses os.Stdout, it's hard to capture its output directly without redirecting os.Stdout.
-	// But we can at least verify it doesn't panic and sets a default logger.
-	
 	t.Run("Setup Sandbox", func(t *testing.T) {
-		Setup(DevelopmentEnvironment)
-		// No panic is a good sign.
+		assert.NotPanics(t, func() { Setup(DevelopmentEnvironment) })
 	})
 
 	t.Run("Setup Production", func(t *testing.T) {
-		Setup(Environment("PRODUCTION"))
-		// No panic is a good sign.
+		assert.NotPanics(t, func() { Setup(Environment("PRODUCTION")) })
 	})
 }
