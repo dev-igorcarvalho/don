@@ -1,6 +1,18 @@
 package echoserver
 
-import "github.com/labstack/echo/v4"
+import (
+	"context"
+
+	"github.com/labstack/echo/v4"
+)
+
+// Server is the interface that all servers must implement.
+type Server interface {
+	RegisterRoutes(routes ...*Route)
+	RegisterGroups(groups ...*Group)
+	Start() error
+	Shutdown(ctx context.Context) error
+}
 
 // Handler is the interface that all route handlers must implement.
 // This enforces the use of handler structs.
