@@ -1,4 +1,4 @@
-package echoserver
+package server
 
 import (
 	"context"
@@ -22,40 +22,40 @@ type Handler interface {
 
 // Route encapsulates a single endpoint's data.
 type Route struct {
-	method     string
-	path       string
-	handler    Handler
-	middleware []echo.MiddlewareFunc
+	Method     string
+	Path       string
+	Handler    Handler
+	Middleware []echo.MiddlewareFunc
 }
 
 // NewRoute creates a new Route instance requiring a Handler interface.
 func NewRoute(method, path string, h Handler, mws ...echo.MiddlewareFunc) *Route {
 	return &Route{
-		method:     method,
-		path:       path,
-		handler:    h,
-		middleware: mws,
+		Method:     method,
+		Path:       path,
+		Handler:    h,
+		Middleware: mws,
 	}
 }
 
 // Group encapsulates a set of routes under a common prefix.
 type Group struct {
-	prefix     string
-	middleware []echo.MiddlewareFunc
-	routes     []*Route
+	Prefix     string
+	Middleware []echo.MiddlewareFunc
+	Routes     []*Route
 }
 
 // NewGroup creates a new Group instance.
 func NewGroup(prefix string, mws ...echo.MiddlewareFunc) *Group {
 	return &Group{
-		prefix:     prefix,
-		middleware: mws,
-		routes:     []*Route{},
+		Prefix:     prefix,
+		Middleware: mws,
+		Routes:     []*Route{},
 	}
 }
 
 // AddRoutes adds one or more routes to the group using variadic arguments.
 func (g *Group) AddRoutes(routes ...*Route) *Group {
-	g.routes = append(g.routes, routes...)
+	g.Routes = append(g.Routes, routes...)
 	return g
 }

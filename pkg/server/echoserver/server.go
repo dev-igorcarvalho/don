@@ -6,10 +6,13 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/dev-igorcarvalho/don/pkg/server"
 	"github.com/labstack/echo/v4"
 )
 
 const defaultPort = "8080"
+
+var _ server.Server = (*EchoServer)(nil)
 
 type EchoServer struct {
 	app  *echo.Echo
@@ -36,7 +39,7 @@ func WithErrorHandler(handler echo.HTTPErrorHandler) Option {
 	}
 }
 
-func WithHealthCheck(h Handler) Option {
+func WithHealthCheck(h server.Handler) Option {
 	return func(s *EchoServer) {
 		s.app.GET("/health", h.Handle)
 	}
@@ -57,18 +60,18 @@ func New(opts ...Option) *EchoServer {
 }
 
 // RegisterRoutes adds individual routes to the server.
-func (s *EchoServer) RegisterRoutes(routes ...*Route) {
+func (s *EchoServer) RegisterRoutes(routes ...*server.Route) {
 	for _, r := range routes {
-		s.app.Add(r.method, r.path, r.handler.Handle, r.middleware...)
+		s.app.Add(r.Method, r.Path, r.Handler.Handle, r.Middleware...)
 	}
 }
 
 // RegisterGroups adds entire groups of routes.
-func (s *EchoServer) RegisterGroups(groups ...*Group) {
+func (s *EchoServer) RegisterGroups(groups ...*server.Group) {
 	for _, g := range groups {
-		echoGroup := s.app.Group(g.prefix, g.middleware...)
-		for _, r := range g.routes {
-			echoGroup.Add(r.method, r.path, r.handler.Handle, r.middleware...)
+		echoGroup := s.app.Group(g.Prefix, g.Middleware...)
+		for _, r := range g.Routes {
+			echoGroup.Add(r.Method, r.Path, r.Handler.Handle, r.Middleware...)
 		}
 	}
 }

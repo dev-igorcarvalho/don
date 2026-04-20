@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/dev-igorcarvalho/don/pkg/server"
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 )
@@ -48,15 +49,15 @@ func TestNew(t *testing.T) {
 				return next(c)
 			}
 		}
-		
+
 		s := New(WithMiddleware(mw))
-		
-		s.RegisterRoutes(NewRoute("GET", "/test", &mockHandler{}))
-		
+
+		s.RegisterRoutes(server.NewRoute("GET", "/test", &server.mockHandler{}))
+
 		req := httptest.NewRequest(http.MethodGet, "/test", nil)
 		rec := httptest.NewRecorder()
 		s.app.ServeHTTP(rec, req)
-		
+
 		assert.True(t, middlewareCalled)
 	})
 }
@@ -64,20 +65,20 @@ func TestNew(t *testing.T) {
 func TestEchoServer_RegisterRoutes(t *testing.T) {
 	s := New()
 	handlerCalled := false
-	
+
 	h := &testHandler{
 		handleFunc: func(c echo.Context) error {
 			handlerCalled = true
 			return c.String(http.StatusOK, "ok")
 		},
 	}
-	
-	s.RegisterRoutes(NewRoute("GET", "/hello", h))
-	
+
+	s.RegisterRoutes(server.NewRoute("GET", "/hello", h))
+
 	req := httptest.NewRequest(http.MethodGet, "/hello", nil)
 	rec := httptest.NewRecorder()
 	s.app.ServeHTTP(rec, req)
-	
+
 	assert.Equal(t, http.StatusOK, rec.Code)
 	assert.True(t, handlerCalled)
 }
@@ -85,39 +86,39 @@ func TestEchoServer_RegisterRoutes(t *testing.T) {
 func TestEchoServer_RegisterGroups(t *testing.T) {
 	s := New()
 	handlerCalled := false
-	
+
 	h := &testHandler{
 		handleFunc: func(c echo.Context) error {
 			handlerCalled = true
 			return c.String(http.StatusOK, "ok")
 		},
 	}
-	
-	group := NewGroup("/api")
-	group.AddRoutes(NewRoute("GET", "/v1", h))
-	
+
+	group := server.NewGroup("/api")
+	group.AddRoutes(server.NewRoute("GET", "/v1", h))
+
 	s.RegisterGroups(group)
-	
+
 	req := httptest.NewRequest(http.MethodGet, "/api/v1", nil)
 	rec := httptest.NewRecorder()
 	s.app.ServeHTTP(rec, req)
-	
+
 	assert.Equal(t, http.StatusOK, rec.Code)
 	assert.True(t, handlerCalled)
 }
 
 func TestEchoServer_Shutdown(t *testing.T) {
 	s := New()
-	
+
 	go func() {
 		_ = s.Start()
 	}()
-	
+
 	time.Sleep(100 * time.Millisecond)
-	
+
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
-	
+
 	err := s.Shutdown(ctx)
 	assert.NoError(t, err)
 }

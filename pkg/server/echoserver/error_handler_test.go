@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/dev-igorcarvalho/don/pkg/server"
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -61,7 +62,7 @@ func TestWithErrorHandler(t *testing.T) {
 
 	s := New(WithErrorHandler(customHandler))
 
-	s.RegisterRoutes(NewRoute("GET", "/error", &testHandler{
+	s.RegisterRoutes(server.NewRoute("GET", "/error", &testHandler{
 		handleFunc: func(c echo.Context) error {
 			return errors.New("trigger custom handler")
 		},
@@ -74,4 +75,3 @@ func TestWithErrorHandler(t *testing.T) {
 	assert.Equal(t, http.StatusTeapot, rec.Code)
 	assert.True(t, handlerCalled)
 }
-

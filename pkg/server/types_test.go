@@ -1,4 +1,4 @@
-package echoserver
+package server
 
 import (
 	"testing"
