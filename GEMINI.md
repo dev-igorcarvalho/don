@@ -62,6 +62,7 @@ The application uses environment variables for configuration. The following vari
 
 ## Gemini CLI Directives
 - **Go Standards:** Always activate the `go-standards` skill before performing any Go-related coding tasks to ensure compliance with project and language conventions.
+- **Semantic Commits:** Always use the `semantic-commit` skill for all commits to maintain a consistent and structured commit history.
 
 ---
 *Note: This project is in its early stages. Many directories contain only `.gitkeep` files as placeholders for future implementation.*
