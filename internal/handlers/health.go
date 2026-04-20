@@ -12,6 +12,6 @@ func NewHealthHandler() *HealthHandler {
 	return &HealthHandler{}
 }
 
-func (h *HealthHandler) Check(c echo.Context) error {
+func (h *HealthHandler) Handle(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]string{"status": "up"})
 }

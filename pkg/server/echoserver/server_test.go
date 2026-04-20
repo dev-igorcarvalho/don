@@ -29,6 +29,27 @@ func TestNew(t *testing.T) {
 		}
 	})
 
+	t.Run("with health check", func(t *testing.T) {
+		h := &testHandler{
+			handleFunc: func(c echo.Context) error {
+				return c.JSON(http.StatusOK, map[string]string{"status": "up"})
+			},
+		}
+		s := New(WithHealthCheck(h))
+
+		req := httptest.NewRequest(http.MethodGet, "/health", nil)
+		rec := httptest.NewRecorder()
+		s.app.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Errorf("expected status OK, got %d", rec.Code)
+		}
+		expectedBody := `{"status":"up"}` + "\n"
+		if rec.Body.String() != expectedBody {
+			t.Errorf("expected body %s, got %s", expectedBody, rec.Body.String())
+		}
+	})
+
 	t.Run("with middleware", func(t *testing.T) {
 		middlewareCalled := false
 		mw := func(next echo.HandlerFunc) echo.HandlerFunc {
