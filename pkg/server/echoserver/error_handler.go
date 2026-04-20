@@ -5,35 +5,50 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/dev-igorcarvalho/don/pkg/errors"
 	"github.com/labstack/echo/v4"
 )
 
 // ErrorResponse is the standard API error structure.
-// todo: improve this error response type
 type ErrorResponse struct {
-	Error   string `json:"error"`
-	Message string `json:"message,omitempty"`
+	Code    string `json:"code"`
+	Message string `json:"message"`
+	Detail  string `json:"detail,omitempty"`
 }
 
 // DefaultErrorHandler is a standard error handler that returns JSON.
-// todo: improve this error response handler
 func DefaultErrorHandler(err error, c echo.Context) {
 	if c.Response().Committed {
 		return
 	}
 
 	code := http.StatusInternalServerError
-	message := err.Error()
+	errorCode := "INTERNAL_ERROR"
+	message := "An unexpected internal error occurred"
+	var detail string
 
+	var appErr *apperr.AppError
 	var he *echo.HTTPError
-	if errors.As(err, &he) {
+
+	switch {
+	case apperr.As(err, &appErr):
+		if appErr.HttpStatus != 0 {
+			code = appErr.HttpStatus
+		}
+		errorCode = appErr.Code
+		message = appErr.Message
+		detail = appErr.Detail.Detail
+
+	case errors.As(err, &he):
 		code = he.Code
+		errorCode = http.StatusText(he.Code)
 		message = fmt.Sprintf("%v", he.Message)
 	}
 
 	resp := ErrorResponse{
-		Error:   http.StatusText(code),
+		Code:    errorCode,
 		Message: message,
+		Detail:  detail,
 	}
 
 	if err := c.JSON(code, resp); err != nil {

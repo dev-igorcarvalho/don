@@ -52,7 +52,11 @@ func TestNew(t *testing.T) {
 
 		s := New(WithMiddleware(mw))
 
-		s.RegisterRoutes(server.NewRoute("GET", "/test", &server.mockHandler{}))
+		s.RegisterRoutes(server.NewRoute("GET", "/test", &testHandler{
+			handleFunc: func(c echo.Context) error {
+				return nil
+			},
+		}))
 
 		req := httptest.NewRequest(http.MethodGet, "/test", nil)
 		rec := httptest.NewRecorder()
