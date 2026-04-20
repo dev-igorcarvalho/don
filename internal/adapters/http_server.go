@@ -19,7 +19,7 @@ func NewHTTPServer(cfg config.AppConfig, healthHandler *handlers.HealthHandler) 
 	e := echo.New()
 
 	// Routes
-	e.GET("/health", healthHandler.Check)
+	e.GET("/health", healthHandler.Handle)
 
 	return &HTTPServer{
 		echo: e,
