@@ -30,6 +30,18 @@ func WithMiddleware(middlewares ...echo.MiddlewareFunc) Option {
 	}
 }
 
+func WithErrorHandler(handler echo.HTTPErrorHandler) Option {
+	return func(s *EchoServer) {
+		s.app.HTTPErrorHandler = handler
+	}
+}
+
+func WithHealthCheck(h Handler) Option {
+	return func(s *EchoServer) {
+		s.app.GET("/health", h.Handle)
+	}
+}
+
 func New(opts ...Option) *EchoServer {
 	e := echo.New()
 	s := &EchoServer{
