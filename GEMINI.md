@@ -12,8 +12,8 @@ This document provides architectural context, development standards, and operati
   - `internal/core/usecases/`: Application-specific business rules.
   - `internal/adapters/`: Implementations of external interfaces (e.g., `HTTPServer` using Echo, DB, Messaging).
   - `internal/handlers/`: Transport layer implementations (e.g., HTTP controllers).
-  - `internal/config/`: Type-safe environment configuration.
-  - `pkg/`: Shared utility packages (e.g., `logger`).
+  - `internal/config/`: Application-specific configuration structures.
+  - `pkg/`: Shared utility packages (e.g., `logger`, `config` loader).
 
 ## Building and Running
 
@@ -53,7 +53,8 @@ The application uses environment variables for configuration. The following vari
 
 ### 3. Configuration Management
 - Add new configuration parameters to `internal/config/types.go` using `env` tags.
-- Load configuration using `config.Load[T]()` in the `cmd/` layer.
+- Use the generic loader in `pkg/config` to load configurations.
+- Example usage in `main.go`: `pkgConfig.Load[config.AppConfig]()`.
 
 ### 4. Error Handling
 - Use the `must` helper in `main.go` for critical initialization errors.
