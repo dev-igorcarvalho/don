@@ -1,6 +1,7 @@
 package echoserver
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"runtime"
@@ -9,6 +10,26 @@ import (
 	"github.com/dev-igorcarvalho/don/pkg/logger"
 	"github.com/labstack/echo/v4"
 )
+
+// ContextFromHeaderMiddleware returns a middleware that extracts the specified headers
+// from the request and injects them into the request context.
+func ContextFromHeaderMiddleware(headers ...string) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			req := c.Request()
+			ctx := req.Context()
+
+			for _, h := range headers {
+				if val := req.Header.Get(h); val != "" {
+					ctx = context.WithValue(ctx, h, val)
+				}
+			}
+
+			c.SetRequest(req.WithContext(ctx))
+			return next(c)
+		}
+	}
+}
 
 // LoggerMiddleware returns a middleware that logs HTTP requests with additional base attributes.
 func LoggerMiddleware(baseAttrs ...slog.Attr) echo.MiddlewareFunc {

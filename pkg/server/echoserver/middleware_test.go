@@ -13,6 +13,29 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestContextFromHeaderMiddleware(t *testing.T) {
+	e := echo.New()
+	t.Run("extracts headers and injects them into context", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req.Header.Set("X-Trace-Id", "test-trace-id")
+		req.Header.Set("X-Tenant-Id", "test-tenant-id")
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+
+		mw := ContextFromHeaderMiddleware("X-Trace-Id", "X-Tenant-Id", "X-Missing")
+		h := mw(func(c echo.Context) error {
+			ctx := c.Request().Context()
+			assert.Equal(t, "test-trace-id", ctx.Value("X-Trace-Id"))
+			assert.Equal(t, "test-tenant-id", ctx.Value("X-Tenant-Id"))
+			assert.Nil(t, ctx.Value("X-Missing"))
+			return c.String(http.StatusOK, "ok")
+		})
+
+		err := h(c)
+		assert.NoError(t, err)
+	})
+}
+
 func TestLoggerMiddleware(t *testing.T) {
 	e := echo.New()
 	req := httptest.NewRequest(http.MethodGet, "/test-path", nil)
