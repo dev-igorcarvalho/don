@@ -54,6 +54,11 @@ func wireServer(cfg *config.AppConfig) server.Server {
 		echoserver.WithPort(cfg.HTTPPort),
 		echoserver.WithHealthCheck(healthHandler),
 		echoserver.WithErrorHandler(echoserver.DefaultErrorHandler),
+		echoserver.WithMiddleware(
+			echoserver.LoggerMiddleware(),
+			echoserver.RecoveryMiddleware(),
+			echoserver.SecurityHeadersMiddleware(),
+		),
 	)
 
 	return srv

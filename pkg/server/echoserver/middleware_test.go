@@ -13,6 +13,61 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestSecurityHeadersMiddleware(t *testing.T) {
+	e := echo.New()
+
+	t.Run("injects security headers for GET request", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+
+		mw := SecurityHeadersMiddleware()
+		h := mw(func(c echo.Context) error {
+			return c.String(http.StatusOK, "ok")
+		})
+
+		err := h(c)
+		assert.NoError(t, err)
+		assert.Equal(t, "nosniff", rec.Header().Get("X-Content-Type-Options"))
+		assert.Equal(t, "DENY", rec.Header().Get("X-Frame-Options"))
+		assert.Equal(t, "default-src 'none'", rec.Header().Get("Content-Security-Policy"))
+	})
+
+	t.Run("returns 415 for POST request with missing Content-Type", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+
+		mw := SecurityHeadersMiddleware()
+		h := mw(func(c echo.Context) error {
+			return c.String(http.StatusOK, "ok")
+		})
+
+		err := h(c)
+		assert.Error(t, err)
+		he, ok := err.(*echo.HTTPError)
+		require.True(t, ok)
+		assert.Equal(t, http.StatusUnsupportedMediaType, he.Code)
+	})
+
+	t.Run("allows POST request with application/json Content-Type", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/", nil)
+		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+
+		mw := SecurityHeadersMiddleware()
+		h := mw(func(c echo.Context) error {
+			return c.String(http.StatusOK, "ok")
+		})
+
+		err := h(c)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Equal(t, "nosniff", rec.Header().Get("X-Content-Type-Options"))
+	})
+}
+
 func TestContextFromHeaderMiddleware(t *testing.T) {
 	e := echo.New()
 	t.Run("extracts headers and injects them into context", func(t *testing.T) {

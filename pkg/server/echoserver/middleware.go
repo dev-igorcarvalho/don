@@ -4,12 +4,35 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"runtime"
 	"time"
 
 	"github.com/dev-igorcarvalho/don/pkg/logger"
 	"github.com/labstack/echo/v4"
 )
+
+// SecurityHeadersMiddleware returns a middleware that validates incoming headers
+// and injects security headers in all responses.
+func SecurityHeadersMiddleware() echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			req := c.Request()
+
+			// Validate Content-Type for non-GET requests
+			if req.Method != http.MethodGet && req.Header.Get(echo.HeaderContentType) != echo.MIMEApplicationJSON {
+				return echo.NewHTTPError(http.StatusUnsupportedMediaType, "Unsupported Media Type")
+			}
+
+			res := c.Response()
+			res.Header().Set("X-Content-Type-Options", "nosniff")
+			res.Header().Set("X-Frame-Options", "DENY")
+			res.Header().Set("Content-Security-Policy", "default-src 'none'")
+
+			return next(c)
+		}
+	}
+}
 
 // ContextFromHeaderMiddleware returns a middleware that extracts the specified headers
 // from the request and injects them into the request context.
