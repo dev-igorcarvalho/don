@@ -26,10 +26,10 @@ func TestNewRoute(t *testing.T) {
 
 	route := NewRoute(method, path, handler, middleware...)
 
-	assert.Equal(t, method, route.method)
-	assert.Equal(t, path, route.path)
-	assert.Equal(t, handler, route.handler)
-	assert.Len(t, route.middleware, len(middleware))
+	assert.Equal(t, method, route.Method)
+	assert.Equal(t, path, route.Path)
+	assert.Equal(t, handler, route.Handler)
+	assert.Len(t, route.Middleware, len(middleware))
 }
 
 func TestNewGroup(t *testing.T) {
@@ -42,9 +42,9 @@ func TestNewGroup(t *testing.T) {
 
 	group := NewGroup(prefix, middleware...)
 
-	assert.Equal(t, prefix, group.prefix)
-	assert.Len(t, group.middleware, len(middleware))
-	assert.Empty(t, group.routes)
+	assert.Equal(t, prefix, group.Prefix)
+	assert.Len(t, group.Middleware, len(middleware))
+	assert.Empty(t, group.Routes)
 }
 
 func TestGroup_AddRoutes(t *testing.T) {
@@ -54,13 +54,13 @@ func TestGroup_AddRoutes(t *testing.T) {
 
 	group.AddRoutes(route1, route2)
 
-	assert.Len(t, group.routes, 2)
-	assert.Equal(t, route1, group.routes[0])
-	assert.Equal(t, route2, group.routes[1])
+	assert.Len(t, group.Routes, 2)
+	assert.Equal(t, route1, group.Routes[0])
+	assert.Equal(t, route2, group.Routes[1])
 
 	// Test method chaining
 	route3 := NewRoute("GET", "/status", &mockHandler{})
 	group.AddRoutes(route3)
 
-	assert.Len(t, group.routes, 3)
+	assert.Len(t, group.Routes, 3)
 }
