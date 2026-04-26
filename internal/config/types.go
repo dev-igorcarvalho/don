@@ -11,12 +11,10 @@ type AppConfig struct {
 	RateLimitEnabled bool    `env:"RATE_LIMIT_ENABLED,default=false"`
 	RateLimitRPS     float64 `env:"RATE_LIMIT_RPS,default=10"`
 	RateLimitBurst   int     `env:"RATE_LIMIT_BURST,default=20"`
-
-	DB DBConfig
 }
 
 type DBConfig struct {
-	Driver string `env:"DB_DRIVER,default=postgres"`
+	Driver string `env:"DB_DRIVER,required=true"`
 	DSN    string `env:"DB_DSN,required=true"`
 
 	MaxOpenConns    int           `env:"DB_MAX_OPEN_CONNS,default=25"`
@@ -25,7 +23,7 @@ type DBConfig struct {
 	ConnMaxIdleTime time.Duration `env:"DB_CONN_MAX_IDLE_TIME,default=30m"`
 
 	ConnectTimeout time.Duration `env:"DB_CONNECT_TIMEOUT,default=5s"`
-	QueryTimeout   time.Duration `env:"DB_QUERY_TIMEOUT,default=15s"`
+	QueryTimeout   time.Duration `env:"DB_QUERY_TIMEOUT,default=5s"`
 
-	Warmup bool `env:"DB_WARMUP,default=true"`
+	Warmup bool `env:"DB_WARMUP,required=true"`
 }
