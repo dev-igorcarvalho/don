@@ -32,54 +32,30 @@ linters-settings:
   
   depguard:
     rules:
-      main:
-        files:
-          - "$all"
-        deny:
-          - pkg: "github.com/dev-igorcarvalho/don/internal"
-            desc: "Internal packages should not be imported by pkg"
-      
       domain:
         files:
           - "**/internal/core/domain/**"
         allow:
           - "$gostd"
-          - "github.com/dev-igorcarvalho/don/pkg/**"
+          - "github.com/dev-igorcarvalho/don/pkg"
           - "github.com/dev-igorcarvalho/don/internal/core/domain"
-        deny:
-          - pkg: "github.com/dev-igorcarvalho/don/internal/core/usecases"
-            desc: "Domain layer cannot depend on Use Cases"
-          - pkg: "github.com/dev-igorcarvalho/don/internal/adapters"
-            desc: "Domain layer cannot depend on Adapters"
-          - pkg: "github.com/dev-igorcarvalho/don/internal/handlers"
-            desc: "Domain layer cannot depend on Handlers"
-
+      
       usecases:
         files:
           - "**/internal/core/usecases/**"
         allow:
           - "$gostd"
-          - "github.com/dev-igorcarvalho/don/pkg/**"
-          - "github.com/dev-igorcarvalho/don/internal/core/domain/**"
+          - "github.com/dev-igorcarvalho/don/pkg"
+          - "github.com/dev-igorcarvalho/don/internal/core/domain"
           - "github.com/dev-igorcarvalho/don/internal/core/usecases"
-        deny:
-          - pkg: "github.com/dev-igorcarvalho/don/internal/adapters"
-            desc: "Use Cases layer cannot depend on Adapters"
-          - pkg: "github.com/dev-igorcarvalho/don/internal/handlers"
-            desc: "Use Cases layer cannot depend on Handlers"
-
+      
       pkg:
         files:
           - "**/pkg/**"
-        allow:
-          - "$gostd"
-          - "github.com/dev-igorcarvalho/don/pkg/**"
         deny:
-          - pkg: "github.com/dev-igorcarvalho/don/internal/**"
+          - pkg: "github.com/dev-igorcarvalho/don/internal"
             desc: "Package layer (pkg) cannot depend on internal application logic"
 
 issues:
   max-issues-per-linter: 0
   max-same-issues: 0
-
-version: "2"
