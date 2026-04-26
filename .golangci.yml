@@ -1,6 +1,7 @@
 run:
   timeout: 5m
   modules-download-mode: readonly
+  go: '1.26'
 
 linters:
   disable-all: true
@@ -78,6 +79,7 @@ linters-settings:
             desc: "Package layer (pkg) cannot depend on internal application logic"
 
 issues:
-  exclude-use-default: false
   max-issues-per-linter: 0
   max-same-issues: 0
+
+version: "2"
