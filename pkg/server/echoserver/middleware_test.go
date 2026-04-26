@@ -2,6 +2,7 @@ package echoserver
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -12,6 +13,79 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestRateLimitMiddleware(t *testing.T) {
+	e := echo.New()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	t.Run("allows requests within limit", func(t *testing.T) {
+		mw := RateLimitMiddleware(ctx, 10, 1)
+		h := mw(func(c echo.Context) error {
+			return c.String(http.StatusOK, "ok")
+		})
+
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+
+		err := h(c)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusOK, rec.Code)
+	})
+
+	t.Run("blocks requests exceeding limit", func(t *testing.T) {
+		// RPS: 1, Burst: 1
+		mw := RateLimitMiddleware(ctx, 1, 1)
+		h := mw(func(c echo.Context) error {
+			return c.String(http.StatusOK, "ok")
+		})
+
+		// First request (allowed)
+		req1 := httptest.NewRequest(http.MethodGet, "/", nil)
+		rec1 := httptest.NewRecorder()
+		c1 := e.NewContext(req1, rec1)
+		err1 := h(c1)
+		assert.NoError(t, err1)
+		assert.Equal(t, http.StatusOK, rec1.Code)
+
+		// Second request (blocked)
+		req2 := httptest.NewRequest(http.MethodGet, "/", nil)
+		rec2 := httptest.NewRecorder()
+		c2 := e.NewContext(req2, rec2)
+		err2 := h(c2)
+
+		assert.Error(t, err2)
+		he, ok := err2.(*echo.HTTPError)
+		require.True(t, ok)
+		assert.Equal(t, http.StatusTooManyRequests, he.Code)
+		assert.Equal(t, "1", rec2.Header().Get("Retry-After"))
+	})
+
+	t.Run("limits different IPs separately", func(t *testing.T) {
+		mw := RateLimitMiddleware(ctx, 1, 1)
+		h := mw(func(c echo.Context) error {
+			return c.String(http.StatusOK, "ok")
+		})
+
+		// First request from IP 1 (allowed)
+		req1 := httptest.NewRequest(http.MethodGet, "/", nil)
+		req1.RemoteAddr = "1.1.1.1:1234"
+		rec1 := httptest.NewRecorder()
+		c1 := e.NewContext(req1, rec1)
+		_ = h(c1)
+		assert.Equal(t, http.StatusOK, rec1.Code)
+
+		// First request from IP 2 (allowed)
+		req2 := httptest.NewRequest(http.MethodGet, "/", nil)
+		req2.RemoteAddr = "2.2.2.2:1234"
+		rec2 := httptest.NewRecorder()
+		c2 := e.NewContext(req2, rec2)
+		err2 := h(c2)
+		assert.NoError(t, err2)
+		assert.Equal(t, http.StatusOK, rec2.Code)
+	})
+}
 
 func TestSecurityHeadersMiddleware(t *testing.T) {
 	e := echo.New()

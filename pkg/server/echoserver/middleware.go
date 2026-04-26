@@ -6,11 +6,68 @@ import (
 	"log/slog"
 	"net/http"
 	"runtime"
+	"sync"
 	"time"
 
 	"github.com/dev-igorcarvalho/don/pkg/logger"
 	"github.com/labstack/echo/v4"
+	"golang.org/x/time/rate"
 )
+
+type rateLimitedClient struct {
+	limiter  *rate.Limiter
+	lastSeen time.Time
+}
+
+// RateLimitMiddleware returns a middleware that limits the number of requests
+// per IP address using the token bucket algorithm. It includes a background
+// worker that cleans up idle entries to prevent memory leaks, using the provided
+// context for graceful shutdown.
+func RateLimitMiddleware(ctx context.Context, rps float64, burst int) echo.MiddlewareFunc {
+	var limiters sync.Map
+
+	go func() {
+		ticker := time.NewTicker(10 * time.Minute)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				limiters.Range(func(key, value any) bool {
+					c := value.(*rateLimitedClient)
+					if time.Since(c.lastSeen) > 1*time.Hour {
+						limiters.Delete(key)
+					}
+					return true
+				})
+			}
+		}
+	}()
+
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			ip := c.RealIP()
+			now := time.Now()
+
+			l, _ := limiters.LoadOrStore(ip, &rateLimitedClient{
+				limiter:  rate.NewLimiter(rate.Limit(rps), burst),
+				lastSeen: now,
+			})
+
+			client := l.(*rateLimitedClient)
+			client.lastSeen = now
+
+			if !client.limiter.Allow() {
+				c.Response().Header().Set("Retry-After", "1")
+				return echo.NewHTTPError(http.StatusTooManyRequests, "Too Many Requests")
+			}
+
+			return next(c)
+		}
+	}
+}
 
 // SecurityHeadersMiddleware returns a middleware that validates incoming headers
 // and injects security headers in all responses.

@@ -15,6 +15,7 @@ import (
 	"github.com/dev-igorcarvalho/don/pkg/must"
 	"github.com/dev-igorcarvalho/don/pkg/server"
 	"github.com/dev-igorcarvalho/don/pkg/server/echoserver"
+	"github.com/labstack/echo/v4"
 )
 
 const shutdownTimeout = 10 * time.Second
@@ -30,7 +31,7 @@ func run() error {
 	logger.Setup(logger.Environment(cfg.Environment))
 
 	lm := lifecycle.NewManager(shutdownTimeout)
-	srv := wireServer(cfg)
+	srv := wireServer(ctx, cfg)
 
 	// Register server for graceful shutdown
 	lm.Register("api-server", srv)
@@ -47,18 +48,24 @@ func run() error {
 	return lm.Wait(ctx)
 }
 
-func wireServer(cfg *config.AppConfig) server.Server {
+func wireServer(ctx context.Context, cfg *config.AppConfig) server.Server {
 	healthHandler := handlers.NewHealthHandler()
+
+	middlewares := []echo.MiddlewareFunc{
+		echoserver.LoggerMiddleware(),
+		echoserver.RecoveryMiddleware(),
+		echoserver.SecurityHeadersMiddleware(echo.MIMEApplicationJSON),
+	}
+
+	if cfg.RateLimitEnabled {
+		middlewares = append(middlewares, echoserver.RateLimitMiddleware(ctx, cfg.RateLimitRPS, cfg.RateLimitBurst))
+	}
 
 	srv := echoserver.New(
 		echoserver.WithPort(cfg.HTTPPort),
 		echoserver.WithHealthCheck(healthHandler),
 		echoserver.WithErrorHandler(echoserver.DefaultErrorHandler),
-		echoserver.WithMiddleware(
-			echoserver.LoggerMiddleware(),
-			echoserver.RecoveryMiddleware(),
-			echoserver.SecurityHeadersMiddleware(echo.MIMEApplicationJSON),
-		),
+		echoserver.WithMiddleware(middlewares...),
 	)
 
 	return srv
