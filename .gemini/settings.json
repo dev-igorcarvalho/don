@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "AfterAgent": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "name": "lint-after-task",
+            "type": "command",
+            "command": "make lint"
+          }
+        ]
+      }
+    ]
+  }
+}
