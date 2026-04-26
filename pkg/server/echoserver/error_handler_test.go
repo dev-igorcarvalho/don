@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/dev-igorcarvalho/don/pkg/errors"
+	apperr "github.com/dev-igorcarvalho/don/pkg/errors"
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 )

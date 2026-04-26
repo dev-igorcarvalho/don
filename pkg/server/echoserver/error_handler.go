@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/dev-igorcarvalho/don/pkg/errors"
+	apperr "github.com/dev-igorcarvalho/don/pkg/errors"
 	"github.com/labstack/echo/v4"
 )
 

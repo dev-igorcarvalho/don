@@ -1,7 +1,7 @@
 package domain
 
 import (
-	"github.com/dev-igorcarvalho/don/pkg/errors"
+	apperr "github.com/dev-igorcarvalho/don/pkg/errors"
 )
 
 // Error codes follow the pattern: E[ACRONYM][0000]
