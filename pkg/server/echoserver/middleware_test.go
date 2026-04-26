@@ -21,7 +21,7 @@ func TestSecurityHeadersMiddleware(t *testing.T) {
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 
-		mw := SecurityHeadersMiddleware()
+		mw := SecurityHeadersMiddleware(echo.MIMEApplicationJSON)
 		h := mw(func(c echo.Context) error {
 			return c.String(http.StatusOK, "ok")
 		})
@@ -38,7 +38,7 @@ func TestSecurityHeadersMiddleware(t *testing.T) {
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 
-		mw := SecurityHeadersMiddleware()
+		mw := SecurityHeadersMiddleware(echo.MIMEApplicationJSON)
 		h := mw(func(c echo.Context) error {
 			return c.String(http.StatusOK, "ok")
 		})
@@ -56,7 +56,7 @@ func TestSecurityHeadersMiddleware(t *testing.T) {
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 
-		mw := SecurityHeadersMiddleware()
+		mw := SecurityHeadersMiddleware(echo.MIMEApplicationJSON)
 		h := mw(func(c echo.Context) error {
 			return c.String(http.StatusOK, "ok")
 		})
@@ -65,6 +65,22 @@ func TestSecurityHeadersMiddleware(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 		assert.Equal(t, "nosniff", rec.Header().Get("X-Content-Type-Options"))
+	})
+
+	t.Run("allows POST request with multiple allowed Content-Types", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/", nil)
+		req.Header.Set(echo.HeaderContentType, "application/xml")
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+
+		mw := SecurityHeadersMiddleware(echo.MIMEApplicationJSON, "application/xml")
+		h := mw(func(c echo.Context) error {
+			return c.String(http.StatusOK, "ok")
+		})
+
+		err := h(c)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusOK, rec.Code)
 	})
 }
 

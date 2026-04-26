@@ -57,7 +57,7 @@ func wireServer(cfg *config.AppConfig) server.Server {
 		echoserver.WithMiddleware(
 			echoserver.LoggerMiddleware(),
 			echoserver.RecoveryMiddleware(),
-			echoserver.SecurityHeadersMiddleware(),
+			echoserver.SecurityHeadersMiddleware(echo.MIMEApplicationJSON),
 		),
 	)
 

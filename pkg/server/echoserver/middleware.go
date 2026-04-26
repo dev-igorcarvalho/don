@@ -14,17 +14,34 @@ import (
 
 // SecurityHeadersMiddleware returns a middleware that validates incoming headers
 // and injects security headers in all responses.
-func SecurityHeadersMiddleware() echo.MiddlewareFunc {
+// If no allowedContentTypes are provided, it defaults to application/json.
+func SecurityHeadersMiddleware(allowedContentTypes ...string) echo.MiddlewareFunc {
+	if len(allowedContentTypes) == 0 {
+		allowedContentTypes = []string{echo.MIMEApplicationJSON}
+	}
+
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			req := c.Request()
 
 			// Validate Content-Type for non-GET requests
-			if req.Method != http.MethodGet && req.Header.Get(echo.HeaderContentType) != echo.MIMEApplicationJSON {
-				return echo.NewHTTPError(http.StatusUnsupportedMediaType, "Unsupported Media Type")
+			if req.Method != http.MethodGet {
+				contentType := req.Header.Get(echo.HeaderContentType)
+				allowed := false
+				for _, t := range allowedContentTypes {
+					if contentType == t {
+						allowed = true
+						break
+					}
+				}
+
+				if !allowed {
+					return echo.NewHTTPError(http.StatusUnsupportedMediaType, "Unsupported Media Type")
+				}
 			}
 
 			res := c.Response()
+
 			res.Header().Set("X-Content-Type-Options", "nosniff")
 			res.Header().Set("X-Frame-Options", "DENY")
 			res.Header().Set("Content-Security-Policy", "default-src 'none'")
