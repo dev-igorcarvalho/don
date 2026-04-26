@@ -25,23 +25,20 @@ Este documento consolida os requisitos e padrões discutidos para a criação de
     - [x] Middleware para capturar panics e logar stack trace estruturado.
 
 ## 2. Camada de Transporte HTTP
-- [ ] **Decodificação Estrita de JSON**
-    - [ ] Usar `DisallowUnknownFields()`.
-    - [ ] Aplicar `http.MaxBytesReader` para limitar tamanho do body.
-- [ ] **Validação Dupla**
-    - [ ] Implementar validação sintática via struct tags.
-    - [ ] Implementar método `Validate()` semântico para regras de negócio complexas.
-- [ ] **Middleware de Contextualização**
-    - [ ] Geração/Propagação de `Request ID` via Header `X-Request-ID`.
-    - [ ] Aplicação de *Timeout* por requisição.
-- [ ] **Gestão de Headers**
-    - [ ] Validar `Content-Type: application/json`.
-    - [ ] Injetar *Security Headers* (nosniff, DENY, etc.).
-- [ ] **Padronização de Respostas de Erro**
+- [x] **Decodificação Estrita de JSON**
+    - [x] Usar `DisallowUnknownFields()`.
+    - [x] Aplicar `http.MaxBytesReader` para limitar tamanho do body.
+- [x] **Middleware de Contextualização**
+    - [x] Geração/Propagação de `Request ID` via Header `X-Request-ID`.
+    - [x] Aplicação de *Timeout* por requisição.
+- [x] **Gestão de Headers**
+    - [x] Validar `Content-Type: application/json`.
+    - [x] Injetar *Security Headers* (nosniff, DENY, etc.).
+- [x] **Padronização de Respostas de Erro**
     - [ ] Seguir o padrão RFC 7807 (Problem Details).
-    - [ ] Mapeamento automático de erros de domínio para status codes HTTP.
-- [ ] **Rate Limiting (Opt-in)**
-    - [ ] Implementar limitador simples por IP com headers de feedback.
+    - [x] Mapeamento automático de erros de domínio para status codes HTTP.
+- [x] **Rate Limiting (Opt-in)**
+    - [x] Implementar limitador simples por IP com headers de feedback.
 
 ## 3. Camada de Persistência (Database)
 - [ ] **Pool Management & Fine-Tuning**
@@ -64,10 +61,6 @@ Este documento consolida os requisitos e padrões discutidos para a criação de
     - [ ] Garantir idempotência em scripts de semente (*seeding*).
 
 ## 4. Funcionalidades Avançadas (Staff Level)
-- [ ] **Idempotência Nativa**
-    - [ ] Middleware para Header `X-Idempotency-Key` com suporte a cache/banco.
-- [ ] **Functional Options Pattern**
-    - [ ] Usar para construtores de servidores, loggers e clientes.
 - [ ] **Paginação Baseada em Cursor**
     - [ ] Implementar lógica de `after_id` para evitar problemas de escala/concorrência.
 - [ ] **Deep Health Checks**
@@ -76,9 +69,6 @@ Este documento consolida os requisitos e padrões discutidos para a criação de
 ## 5. Extensibilidade e Configuração
 - [ ] **Middlewares Componíveis**
     - [ ] Permitir ativação seletiva (Opt-in) por rota.
-- [ ] **Feature Flags Internas**
-    - [ ] Implementar *Debug Mode* para logs de trace/body.
-    - [ ] Implementar *Maintenance Mode* (503) controlado via config.
 - [ ] **Contract Testing & Docs**
     - [ ] Toggle para habilitar/desabilitar documentação OpenAPI/Swagger.
 - [ ] **Mock Mode**
