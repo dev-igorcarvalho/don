@@ -85,7 +85,7 @@ func TestAppError_WithErr(t *testing.T) {
 
 func TestAs(t *testing.T) {
 	err := &AppError{Code: "not_found", Message: "not found"}
-	
+
 	var ae *AppError
 	assert.True(t, As(err, &ae))
 	assert.Equal(t, "not_found", ae.Code)

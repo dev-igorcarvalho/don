@@ -44,7 +44,7 @@ func TestLoad(t *testing.T) {
 
 	t.Run("invalid overrides should be ignored", func(t *testing.T) {
 		t.Setenv("TEST_NAME", "original")
-		
+
 		overrides := []Override{
 			{EnvVar: "", Value: "ignored"},
 			{EnvVar: "TEST_NAME", Value: ""},
