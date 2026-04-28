@@ -5,9 +5,9 @@
         "matcher": "*",
         "hooks": [
           {
-            "name": "lint-after-task",
+            "name": "Linter",
             "type": "command",
-            "command": "make lint"
+            "command":".gemini/lint.sh"
           }
         ]
       }

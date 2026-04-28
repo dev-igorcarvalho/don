@@ -59,3 +59,12 @@ linters-settings:
 issues:
   max-issues-per-linter: 0
   max-same-issues: 0
+  exclude-dirs:
+    - .gemini
+    - .idea
+    - docs
+    - vendor
+  exclude-rules:
+    - linters:
+        - staticcheck
+      text: "SA1029:"

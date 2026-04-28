@@ -10,6 +10,10 @@ lint:
 	fi
 	golangci-lint run ./...
 
+lint-incremental:
+	@echo "Running incremental linter..."
+	golangci-lint run --new-from-rev=HEAD ./...
+
 lint-fix:
 	@echo "Fixing lint issues..."
 	golangci-lint run --fix ./...
