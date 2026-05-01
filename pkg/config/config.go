@@ -1,3 +1,5 @@
+// Package config provides a generic configuration loader that unmarshals
+// environment variables into structured Go types.
 package config
 
 import (
@@ -7,6 +9,7 @@ import (
 	goenv "github.com/Netflix/go-env"
 )
 
+// Override allows forcing environment variable values before loading the configuration.
 type Override struct {
 	EnvVar string
 	Value  string
@@ -16,6 +19,8 @@ func (o *Override) isValid() bool {
 	return o.EnvVar != "" && o.Value != ""
 }
 
+// Load populates a configuration struct of type T from environment variables.
+// It optionally accepts Overrides to set specific environment variables before unmarshaling.
 func Load[T any](overrides ...Override) (*T, error) {
 	for _, o := range overrides {
 		if o.isValid() {

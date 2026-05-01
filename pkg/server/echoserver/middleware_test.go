@@ -274,4 +274,3 @@ func TestRecoveryMiddleware(t *testing.T) {
 		assert.Contains(t, logEntry, "stack")
 	})
 }
-

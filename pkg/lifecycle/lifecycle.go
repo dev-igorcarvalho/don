@@ -1,3 +1,5 @@
+// Package lifecycle provides a manager for coordinating the graceful shutdown
+// of multiple components in the application.
 package lifecycle
 
 import (

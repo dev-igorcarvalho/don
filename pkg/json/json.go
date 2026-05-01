@@ -1,3 +1,5 @@
+// Package json provides a wrapper around the standard encoding/json package,
+// offering a Serializer type for consistent JSON handling.
 package json
 
 import (

@@ -1,3 +1,12 @@
+// ---
+// title: Server Types
+// description: Defines core interfaces and structures for HTTP server implementations, including Server, Handler, Route, and Group.
+// last_updated: 2026-05-01
+// type: Interface
+// ---
+
+// Package server defines the core interfaces and types for building
+// and managing HTTP servers within the application.
 package server
 
 import (

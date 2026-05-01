@@ -1,3 +1,5 @@
+// Package must provides helper functions that log a fatal error and exit
+// the application when a critical operation fails or a requirement is not met.
 package must
 
 import (
