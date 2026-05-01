@@ -1,3 +1,9 @@
+// ---
+// title: Must Utility
+// description: Provides helper functions for fatal error handling and application exit on critical failures.
+// last_updated: 2026-05-01
+// type: Utility
+// ---
 // Package must provides helper functions that log a fatal error and exit
 // the application when a critical operation fails or a requirement is not met.
 package must

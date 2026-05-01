@@ -1,3 +1,9 @@
+// ---
+// title: Lifecycle Manager
+// description: Coordinates graceful shutdown of application components using a LIFO approach.
+// last_updated: 2026-05-01
+// type: Implementation
+// ---
 // Package lifecycle provides a manager for coordinating the graceful shutdown
 // of multiple components in the application.
 package lifecycle

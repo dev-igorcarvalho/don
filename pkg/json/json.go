@@ -1,3 +1,9 @@
+// ---
+// title: JSON Serializer Utility
+// description: Wrapper around encoding/json for consistent serialization and deserialization.
+// last_updated: 2026-05-01
+// type: Utility
+// ---
 // Package json provides a wrapper around the standard encoding/json package,
 // offering a Serializer type for consistent JSON handling.
 package json
