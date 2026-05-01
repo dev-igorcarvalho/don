@@ -73,3 +73,7 @@ Este documento consolida os requisitos e padrões discutidos para a criação de
     - [ ] Toggle para habilitar/desabilitar documentação OpenAPI/Swagger.
 - [ ] **Mock Mode**
     - [ ] Prover adapters de infraestrutura estáticos para desenvolvimento paralelo.
+
+## 6. Explorar mais opcoes do linter com configs mais avançadas
+- [ ] ** Validar funcoes avançadas de linter** 
+  - [ ] Descobrir as opcoes e implementar o que for pertinente

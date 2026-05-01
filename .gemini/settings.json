@@ -1,5 +1,17 @@
 {
   "hooks": {
+    "BeforeAgent": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "name": "frontmatter-checker",
+            "type": "command",
+            "command": "/home/igor/.gemini/scripts/hook-frontmatter.sh"
+          }
+        ]
+      }
+    ],
     "AfterAgent": [
       {
         "matcher": "*",

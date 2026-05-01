@@ -60,9 +60,14 @@ The application uses environment variables for configuration. The following vari
 - Use the `must` helper in `main.go` for critical initialization errors.
 - Prefer explicit error handling and wrapping for business logic.
 
+## 🧠 Knowledge Base
+All architectural decisions, domain rules, and developer guides are maintained in the [Internal Wiki](docs/improvements/gemini/index.md).
+
 ## Gemini CLI Directives
+- **Mandatory Planning:** ALWAYS create a plan, let the user review it, and only implement it after receiving explicit approval. Always ask first.
 - **Go Standards:** Always activate the `go-standards` skill before performing any Go-related coding tasks to ensure compliance with project and language conventions.
 - **Semantic Commits:** Always use the `semantic-commit` skill for all commits to maintain a consistent and structured commit history.
+
 
 ---
 *Note: This project is in its early stages. Many directories contain only `.gitkeep` files as placeholders for future implementation.*
