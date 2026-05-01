@@ -4,6 +4,7 @@
 // last_updated: 2026-05-01
 // type: Utility
 // ---
+
 // Package apperr provides a custom error type for the application,
 // supporting machine-readable codes, human-readable messages,
 // and contextual details including operation tracing.
