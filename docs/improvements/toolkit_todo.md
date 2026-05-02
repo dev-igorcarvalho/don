@@ -42,7 +42,7 @@ Este documento consolida os requisitos e padrões discutidos para a criação de
 
 ## 3. Camada de Persistência (Database)
 - [ ] **Pool Management & Fine-Tuning**
-    - [ ] Configurar limites explícitos de conexões (`MaxOpen`, `MaxIdle`, `Lifetime`).
+    - [x] Configurar limites explícitos de conexões (`MaxOpen`, `MaxIdle`, `Lifetime`).
     - [ ] Implementar Health Check/Ping agressivo no startup.
 - [ ] **Abstração de Transações (Unit of Work)**
     - [ ] Implementar padrão *Atomic* via callback para evitar vazamento de `sql.Tx`.
