@@ -67,6 +67,7 @@ All architectural decisions, domain rules, and developer guides are maintained i
 - **Mandatory Planning:** ALWAYS create a plan, let the user review it, and only implement it after receiving explicit approval. Always ask first.
 - **Go Standards:** Always activate the `go-standards` skill before performing any Go-related coding tasks to ensure compliance with project and language conventions.
 - **Semantic Commits:** Always use the `semantic-commit` skill for all commits to maintain a consistent and structured commit history.
+- **Post-Execution:** ALWAYS run the command `/batch-parallel-frontmatter` after a successful execution.
 
 
 ---

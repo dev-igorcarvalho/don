@@ -1,3 +1,10 @@
+// ---
+// title: Base Repository Implementation
+// description: Provides a foundational structure for database repositories with support for read/write splitting.
+// last_updated: 2026-05-02
+// type: Adapter
+// ---
+
 package adapters
 
 import (
@@ -7,19 +14,20 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/dev-igorcarvalho/don/pkg/database"
 	"github.com/dev-igorcarvalho/don/pkg/logger"
 )
 
 // BaseRepository provides common functionality for database repositories
 type BaseRepository struct {
-	db           *sql.DB
+	sqlPair      *database.SQLPair
 	queryTimeout time.Duration
 }
 
 // NewBaseRepository creates a new base repository
-func NewBaseRepository(db *sql.DB, queryTimeout time.Duration) *BaseRepository {
+func NewBaseRepository(sqlPair *database.SQLPair, queryTimeout time.Duration) *BaseRepository {
 	return &BaseRepository{
-		db:           db,
+		sqlPair:      sqlPair,
 		queryTimeout: queryTimeout,
 	}
 }
@@ -37,7 +45,7 @@ func (r *BaseRepository) ExecContext(ctx context.Context, query string, args ...
 	if tx != nil {
 		result, err = tx.ExecContext(ctx, query, args...)
 	} else {
-		result, err = r.db.ExecContext(ctx, query, args...)
+		result, err = r.sqlPair.Writer.ExecContext(ctx, query, args...)
 	}
 
 	r.logQuery(ctx, query, time.Since(start), err)
@@ -62,7 +70,7 @@ func (r *BaseRepository) QueryContext(ctx context.Context, query string, args ..
 	if tx != nil {
 		rows, err = tx.QueryContext(ctx, query, args...)
 	} else {
-		rows, err = r.db.QueryContext(ctx, query, args...)
+		rows, err = r.sqlPair.Reader.QueryContext(ctx, query, args...)
 	}
 
 	r.logQuery(ctx, query, time.Since(start), err)
@@ -87,7 +95,7 @@ func (r *BaseRepository) QueryRowContext(ctx context.Context, query string, args
 	if tx != nil {
 		row = tx.QueryRowContext(ctx, query, args...)
 	} else {
-		row = r.db.QueryRowContext(ctx, query, args...)
+		row = r.sqlPair.Reader.QueryRowContext(ctx, query, args...)
 	}
 
 	// We can't log the error here because it's only available after Scan()

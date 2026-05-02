@@ -1,9 +1,18 @@
+// ---
+// title: SQL Transaction Manager
+// description: Implements atomicity for database operations using the Writer connection from SQLPair.
+// last_updated: 2026-05-02
+// type: Adapter
+// ---
+
 package adapters
 
 import (
 	"context"
 	"database/sql"
 	"fmt"
+
+	"github.com/dev-igorcarvalho/don/pkg/database"
 )
 
 // TransactionManager defines the interface for managing database transactions
@@ -12,17 +21,17 @@ type TransactionManager interface {
 }
 
 type sqlTransactionManager struct {
-	db *sql.DB
+	sqlPair *database.SQLPair
 }
 
 // NewTransactionManager creates a new SQL transaction manager
-func NewTransactionManager(db *sql.DB) TransactionManager {
-	return &sqlTransactionManager{db: db}
+func NewTransactionManager(sqlPair *database.SQLPair) TransactionManager {
+	return &sqlTransactionManager{sqlPair: sqlPair}
 }
 
 // Atomic executes a function within a database transaction
 func (m *sqlTransactionManager) Atomic(ctx context.Context, fn func(ctx context.Context) error) error {
-	tx, err := m.db.BeginTx(ctx, nil)
+	tx, err := m.sqlPair.Writer.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
