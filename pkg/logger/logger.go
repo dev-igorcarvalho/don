@@ -1,7 +1,7 @@
 // ---
 // title: Logger
 // description: Provides structured logging functionality using slog, supporting environment-based configuration and context-aware attributes.
-// last_updated: 2026-05-01
+// last_updated: 2026-05-02
 // type: Package
 // ---
 

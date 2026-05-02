@@ -1,7 +1,7 @@
 // ---
 // title: JSON Serializer Utility
 // description: Wrapper around encoding/json for consistent serialization and deserialization.
-// last_updated: 2026-05-01
+// last_updated: 2026-05-02
 // type: Utility
 // ---
 

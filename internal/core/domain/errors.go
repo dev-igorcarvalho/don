@@ -1,3 +1,10 @@
+// ---
+// title: Domain Errors
+// description: Defines core business errors and their corresponding codes for the Don application.
+// last_updated: 2026-05-02
+// type: Domain
+// ---
+
 package domain
 
 import (

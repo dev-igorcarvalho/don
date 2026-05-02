@@ -1,7 +1,7 @@
 // ---
 // title: Echo Server
 // description: Implementation of the server.Server interface using the Echo framework, featuring functional options for configuration.
-// last_updated: 2026-05-01
+// last_updated: 2026-05-02
 // type: Implementation
 // ---
 

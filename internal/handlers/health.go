@@ -1,3 +1,10 @@
+// ---
+// title: Health Handler
+// description: Provides a basic health check endpoint to verify the service status.
+// last_updated: 2026-05-02
+// type: Implementation
+// ---
+
 package handlers
 
 import (

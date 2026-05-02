@@ -1,7 +1,7 @@
 // ---
 // title: Application Error System
 // description: Defines a custom AppError type for machine-readable codes, human-readable messages, and error tracing.
-// last_updated: 2026-05-01
+// last_updated: 2026-05-02
 // type: Utility
 // ---
 

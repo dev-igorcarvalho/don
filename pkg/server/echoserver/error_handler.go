@@ -1,7 +1,7 @@
 // ---
 // title: Echo Error Handler
 // description: Centralized error handling for the Echo server, translating application errors into standardized JSON responses.
-// last_updated: 2026-05-01
+// last_updated: 2026-05-02
 // type: Utility
 // ---
 
