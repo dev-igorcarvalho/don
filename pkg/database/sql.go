@@ -10,20 +10,86 @@ package database
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 )
 
+var (
+	ErrInvalidDriver          = errors.New("database driver is required")
+	ErrInvalidDSN             = errors.New("database DSN is required")
+	ErrInvalidMaxOpenConns    = errors.New("max open connections cannot be negative")
+	ErrInvalidMaxIdleConns    = errors.New("max idle connections cannot be negative")
+	ErrInvalidConnMaxLifetime = errors.New("conn max lifetime cannot be negative")
+	ErrInvalidConnMaxIdleTime = errors.New("conn max idle time cannot be negative")
+	ErrInvalidConnectTimeout  = errors.New("connect timeout cannot be negative")
+)
+
 // Config holds the database connection settings.
 type Config struct {
-	Driver          string
-	DSN             string
-	MaxOpenConns    int
-	MaxIdleConns    int
-	ConnMaxLifetime time.Duration
-	ConnMaxIdleTime time.Duration
-	Warmup          bool
-	ConnectTimeout  time.Duration
+	Driver                 string
+	DSN                    string
+	MaxOpenConnections     int
+	MaxIdleConnections     int
+	ConnectionsMaxLifetime time.Duration
+	ConnectionsMaxIdleTime time.Duration
+	Warmup                 bool
+	ConnectTimeout         time.Duration
+}
+
+// NewConfig creates a new database configuration and validates it.
+func NewConfig(
+	driver string,
+	dsn string,
+	maxOpenConns int,
+	maxIdleConns int,
+	connMaxLifetime time.Duration,
+	connMaxIdleTime time.Duration,
+	warmup bool,
+	connectTimeout time.Duration,
+) (Config, error) {
+	cfg := Config{
+		Driver:                 driver,
+		DSN:                    dsn,
+		MaxOpenConnections:     maxOpenConns,
+		MaxIdleConnections:     maxIdleConns,
+		ConnectionsMaxLifetime: connMaxLifetime,
+		ConnectionsMaxIdleTime: connMaxIdleTime,
+		Warmup:                 warmup,
+		ConnectTimeout:         connectTimeout,
+	}
+
+	if err := cfg.Validate(); err != nil {
+		return Config{}, err
+	}
+
+	return cfg, nil
+}
+
+// Validate ensures the database configuration is valid.
+func (c Config) Validate() error {
+	if c.Driver == "" {
+		return ErrInvalidDriver
+	}
+	if c.DSN == "" {
+		return ErrInvalidDSN
+	}
+	if c.MaxOpenConnections < 0 {
+		return ErrInvalidMaxOpenConns
+	}
+	if c.MaxIdleConnections < 0 {
+		return ErrInvalidMaxIdleConns
+	}
+	if c.ConnectionsMaxLifetime < 0 {
+		return ErrInvalidConnMaxLifetime
+	}
+	if c.ConnectionsMaxIdleTime < 0 {
+		return ErrInvalidConnMaxIdleTime
+	}
+	if c.ConnectTimeout < 0 {
+		return ErrInvalidConnectTimeout
+	}
+	return nil
 }
 
 // SQLPair manages a pair of database connections for read/write splitting.
@@ -34,23 +100,20 @@ type SQLPair struct {
 
 // NewSQL creates a new sql.DB using the provided configuration.
 func NewSQL(cfg Config) (*sql.DB, error) {
+
+	if err := cfg.Validate(); err != nil {
+		return nil, fmt.Errorf("database driver config is invalid: %w", err)
+	}
+
 	db, err := sql.Open(cfg.Driver, cfg.DSN)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
 
-	if cfg.MaxOpenConns > 0 {
-		db.SetMaxOpenConns(cfg.MaxOpenConns)
-	}
-	if cfg.MaxIdleConns > 0 {
-		db.SetMaxIdleConns(cfg.MaxIdleConns)
-	}
-	if cfg.ConnMaxLifetime > 0 {
-		db.SetConnMaxLifetime(cfg.ConnMaxLifetime)
-	}
-	if cfg.ConnMaxIdleTime > 0 {
-		db.SetConnMaxIdleTime(cfg.ConnMaxIdleTime)
-	}
+	db.SetMaxOpenConns(cfg.MaxOpenConnections)
+	db.SetMaxIdleConns(cfg.MaxIdleConnections)
+	db.SetConnMaxLifetime(cfg.ConnectionsMaxLifetime)
+	db.SetConnMaxIdleTime(cfg.ConnectionsMaxIdleTime)
 
 	if cfg.Warmup {
 		timeout := cfg.ConnectTimeout
@@ -102,8 +165,10 @@ func (p *SQLPair) Close() error {
 		}
 	}
 
-	if len(errs) > 0 {
-		return fmt.Errorf("failed to close SQLPair: %v", errs)
-	}
-	return nil
+	return errors.Join(errs...)
+}
+
+// Shutdown gracefully shuts down the database connections.
+func (p *SQLPair) Shutdown(_ context.Context) error {
+	return p.Close()
 }
