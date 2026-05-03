@@ -1,7 +1,7 @@
 // ---
 // title: SQL Database Initialization
 // description: Generic constructor for sql.DB and SQLPair for primary/replica setups.
-// last_updated: 2026-05-02
+// last_updated: 2026-05-03
 // type: Implementation
 // ---
 
@@ -98,8 +98,14 @@ type SQLPair struct {
 	Reader *sql.DB
 }
 
+// Stats holds aggregated statistics for the database connections.
+type Stats struct {
+	Writer sql.DBStats
+	Reader sql.DBStats
+}
+
 // NewSQL creates a new sql.DB using the provided configuration.
-func NewSQL(cfg Config) (*sql.DB, error) {
+func NewSQL(ctx context.Context, cfg Config) (*sql.DB, error) {
 
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("database driver config is invalid: %w", err)
@@ -120,10 +126,10 @@ func NewSQL(cfg Config) (*sql.DB, error) {
 		if timeout == 0 {
 			timeout = 5 * time.Second
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		wCtx, cancel := context.WithTimeout(ctx, timeout)
 		defer cancel()
 
-		if err := db.PingContext(ctx); err != nil {
+		if err := db.PingContext(wCtx); err != nil {
 			_ = db.Close()
 			return nil, fmt.Errorf("failed to ping database: %w", err)
 		}
@@ -133,13 +139,13 @@ func NewSQL(cfg Config) (*sql.DB, error) {
 }
 
 // NewSQLPair creates a new SQLPair using the provided writer and reader configurations.
-func NewSQLPair(writerCfg, readerCfg Config) (*SQLPair, error) {
-	writer, err := NewSQL(writerCfg)
+func NewSQLPair(ctx context.Context, writerCfg, readerCfg Config) (*SQLPair, error) {
+	writer, err := NewSQL(ctx, writerCfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize writer: %w", err)
 	}
 
-	reader, err := NewSQL(readerCfg)
+	reader, err := NewSQL(ctx, readerCfg)
 	if err != nil {
 		_ = writer.Close()
 		return nil, fmt.Errorf("failed to initialize reader: %w", err)
@@ -149,6 +155,29 @@ func NewSQLPair(writerCfg, readerCfg Config) (*SQLPair, error) {
 		Writer: writer,
 		Reader: reader,
 	}, nil
+}
+
+// Ping verifies the connectivity to both writer and reader databases.
+func (p *SQLPair) Ping(ctx context.Context) error {
+	var errs []error
+
+	if err := p.Writer.PingContext(ctx); err != nil {
+		errs = append(errs, fmt.Errorf("writer ping failed: %w", err))
+	}
+
+	if err := p.Reader.PingContext(ctx); err != nil {
+		errs = append(errs, fmt.Errorf("reader ping failed: %w", err))
+	}
+
+	return errors.Join(errs...)
+}
+
+// Stats returns the aggregated statistics for both writer and reader connections.
+func (p *SQLPair) Stats() Stats {
+	return Stats{
+		Writer: p.Writer.Stats(),
+		Reader: p.Reader.Stats(),
+	}
 }
 
 // Close closes both writer and reader connections.

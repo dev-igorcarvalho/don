@@ -163,7 +163,7 @@ func TestConfig_Validate(t *testing.T) {
 func TestNewSQL(t *testing.T) {
 	t.Run("invalid config", func(t *testing.T) {
 		cfg := Config{}
-		db, err := NewSQL(cfg)
+		db, err := NewSQL(context.Background(), cfg)
 		assert.Nil(t, db)
 		assert.ErrorIs(t, err, ErrInvalidDriver)
 	})
@@ -173,7 +173,7 @@ func TestNewSQL(t *testing.T) {
 			Driver: "invalid",
 			DSN:    "dsn",
 		}
-		db, err := NewSQL(cfg)
+		db, err := NewSQL(context.Background(), cfg)
 		assert.Nil(t, db)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "sql: unknown driver")
@@ -184,7 +184,7 @@ func TestNewSQL(t *testing.T) {
 			Driver: "mock",
 			DSN:    "success",
 		}
-		db, err := NewSQL(cfg)
+		db, err := NewSQL(context.Background(), cfg)
 		assert.NoError(t, err)
 		assert.NotNil(t, db)
 		_ = db.Close()
@@ -196,7 +196,7 @@ func TestNewSQL(t *testing.T) {
 			DSN:    "success",
 			Warmup: true,
 		}
-		db, err := NewSQL(cfg)
+		db, err := NewSQL(context.Background(), cfg)
 		assert.NoError(t, err)
 		assert.NotNil(t, db)
 		_ = db.Close()
@@ -208,7 +208,7 @@ func TestNewSQL(t *testing.T) {
 			DSN:    "ping_fail",
 			Warmup: true,
 		}
-		db, err := NewSQL(cfg)
+		db, err := NewSQL(context.Background(), cfg)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to ping database")
 		assert.Nil(t, db)
@@ -221,7 +221,7 @@ func TestNewSQL(t *testing.T) {
 			Warmup: true,
 			// ConnectTimeout is 0
 		}
-		db, err := NewSQL(cfg)
+		db, err := NewSQL(context.Background(), cfg)
 		assert.NoError(t, err)
 		assert.NotNil(t, db)
 		_ = db.Close()
@@ -234,7 +234,7 @@ func TestNewSQLPair(t *testing.T) {
 			Driver: "mock",
 			DSN:    "success",
 		}
-		pair, err := NewSQLPair(cfg, cfg)
+		pair, err := NewSQLPair(context.Background(), cfg, cfg)
 		assert.NoError(t, err)
 		assert.NotNil(t, pair)
 		assert.NotNil(t, pair.Writer)
@@ -248,7 +248,7 @@ func TestNewSQLPair(t *testing.T) {
 			Driver: "mock",
 			DSN:    "success",
 		}
-		pair, err := NewSQLPair(writerCfg, readerCfg)
+		pair, err := NewSQLPair(context.Background(), writerCfg, readerCfg)
 		assert.Error(t, err)
 		assert.Nil(t, pair)
 		assert.Contains(t, err.Error(), "failed to initialize writer")
@@ -260,7 +260,7 @@ func TestNewSQLPair(t *testing.T) {
 			DSN:    "success",
 		}
 		readerCfg := Config{}
-		pair, err := NewSQLPair(writerCfg, readerCfg)
+		pair, err := NewSQLPair(context.Background(), writerCfg, readerCfg)
 		assert.Error(t, err)
 		assert.Nil(t, pair)
 		assert.Contains(t, err.Error(), "failed to initialize reader")
@@ -277,7 +277,7 @@ func TestNewSQLPair(t *testing.T) {
 		readerCfg := Config{
 			Driver: "invalid",
 		}
-		pair, err := NewSQLPair(writerCfg, readerCfg)
+		pair, err := NewSQLPair(context.Background(), writerCfg, readerCfg)
 		assert.Error(t, err)
 		assert.Nil(t, pair)
 		assert.Equal(t, 1, closeCount, "writer should have been closed")
@@ -290,7 +290,7 @@ func TestSQLPair_Close(t *testing.T) {
 			Driver: "mock",
 			DSN:    "success",
 		}
-		pair, err := NewSQLPair(cfg, cfg)
+		pair, err := NewSQLPair(context.Background(), cfg, cfg)
 		assert.NoError(t, err)
 
 		err = pair.Close()
@@ -300,7 +300,7 @@ func TestSQLPair_Close(t *testing.T) {
 	t.Run("failed writer close", func(t *testing.T) {
 		writerCfg := Config{Driver: "mock", DSN: "close_fail", Warmup: true, MaxIdleConnections: 1}
 		readerCfg := Config{Driver: "mock", DSN: "success", Warmup: true, MaxIdleConnections: 1}
-		pair, err := NewSQLPair(writerCfg, readerCfg)
+		pair, err := NewSQLPair(context.Background(), writerCfg, readerCfg)
 		assert.NoError(t, err)
 
 		err = pair.Close()
@@ -310,7 +310,7 @@ func TestSQLPair_Close(t *testing.T) {
 	t.Run("failed reader close", func(t *testing.T) {
 		writerCfg := Config{Driver: "mock", DSN: "success", Warmup: true, MaxIdleConnections: 1}
 		readerCfg := Config{Driver: "mock", DSN: "close_fail", Warmup: true, MaxIdleConnections: 1}
-		pair, err := NewSQLPair(writerCfg, readerCfg)
+		pair, err := NewSQLPair(context.Background(), writerCfg, readerCfg)
 		assert.NoError(t, err)
 
 		err = pair.Close()
@@ -319,7 +319,7 @@ func TestSQLPair_Close(t *testing.T) {
 
 	t.Run("both fail to close", func(t *testing.T) {
 		cfg := Config{Driver: "mock", DSN: "close_fail", Warmup: true, MaxIdleConnections: 1}
-		pair, err := NewSQLPair(cfg, cfg)
+		pair, err := NewSQLPair(context.Background(), cfg, cfg)
 		assert.NoError(t, err)
 
 		err = pair.Close()
@@ -339,8 +339,59 @@ func TestSQLPair_Shutdown(t *testing.T) {
 		Driver: "mock",
 		DSN:    "success",
 	}
-	pair, _ := NewSQLPair(cfg, cfg)
+	pair, _ := NewSQLPair(context.Background(), cfg, cfg)
 
 	err := pair.Shutdown(context.Background())
 	assert.NoError(t, err)
+}
+
+func TestSQLPair_Ping(t *testing.T) {
+	t.Run("successful ping", func(t *testing.T) {
+		cfg := Config{Driver: "mock", DSN: "success"}
+		pair, _ := NewSQLPair(context.Background(), cfg, cfg)
+		defer pair.Close()
+
+		err := pair.Ping(context.Background())
+		assert.NoError(t, err)
+	})
+
+	t.Run("writer ping fail", func(t *testing.T) {
+		writerCfg := Config{Driver: "mock", DSN: "ping_fail"}
+		readerCfg := Config{Driver: "mock", DSN: "success"}
+		pair, _ := NewSQLPair(context.Background(), writerCfg, readerCfg)
+		defer pair.Close()
+
+		err := pair.Ping(context.Background())
+		assert.ErrorContains(t, err, "writer ping failed")
+	})
+
+	t.Run("reader ping fail", func(t *testing.T) {
+		writerCfg := Config{Driver: "mock", DSN: "success"}
+		readerCfg := Config{Driver: "mock", DSN: "ping_fail"}
+		pair, _ := NewSQLPair(context.Background(), writerCfg, readerCfg)
+		defer pair.Close()
+
+		err := pair.Ping(context.Background())
+		assert.ErrorContains(t, err, "reader ping failed")
+	})
+
+	t.Run("both ping fail", func(t *testing.T) {
+		cfg := Config{Driver: "mock", DSN: "ping_fail"}
+		pair, _ := NewSQLPair(context.Background(), cfg, cfg)
+		defer pair.Close()
+
+		err := pair.Ping(context.Background())
+		assert.ErrorContains(t, err, "writer ping failed")
+		assert.ErrorContains(t, err, "reader ping failed")
+	})
+}
+
+func TestSQLPair_Stats(t *testing.T) {
+	cfg := Config{Driver: "mock", DSN: "success"}
+	pair, _ := NewSQLPair(context.Background(), cfg, cfg)
+	defer pair.Close()
+
+	stats := pair.Stats()
+	assert.NotNil(t, stats.Writer)
+	assert.NotNil(t, stats.Reader)
 }
