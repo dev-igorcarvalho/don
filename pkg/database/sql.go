@@ -1,6 +1,6 @@
 // ---
 // title: SQL Database Initialization
-// description: Generic constructor for sql.DB and SQLPair for primary/replica setups.
+// description: Generic constructor for sql.DB and SQLPair for primary/replica setups with exponential backoff for warmup.
 // last_updated: 2026-05-03
 // type: Implementation
 // ---
