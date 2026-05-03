@@ -1,7 +1,7 @@
 // ---
 // title: Echo Middleware
 // description: Collection of standard middlewares for Echo, including Rate Limiting, Security Headers, Context Injection, Logging, and Recovery.
-// last_updated: 2026-05-02
+// last_updated: 2026-05-03
 // type: Middleware
 // ---
 

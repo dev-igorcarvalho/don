@@ -1,7 +1,7 @@
 // ---
 // title: Configuration Loader
 // description: Generic configuration loader that unmarshals environment variables into structured Go types.
-// last_updated: 2026-05-02
+// last_updated: 2026-05-03
 // type: Utility
 // ---
 

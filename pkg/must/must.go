@@ -1,7 +1,7 @@
 // ---
 // title: Must Utility
 // description: Provides helper functions for fatal error handling and application exit on critical failures.
-// last_updated: 2026-05-02
+// last_updated: 2026-05-03
 // type: Utility
 // ---
 

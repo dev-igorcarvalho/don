@@ -1,7 +1,7 @@
 // ---
 // title: Server Types
 // description: Defines core interfaces and structures for HTTP server implementations, including Server, Handler, Route, and Group.
-// last_updated: 2026-05-02
+// last_updated: 2026-05-03
 // type: Interface
 // ---
 

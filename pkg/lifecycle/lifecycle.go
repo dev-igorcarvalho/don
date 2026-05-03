@@ -1,7 +1,7 @@
 // ---
 // title: Lifecycle Manager
 // description: Coordinates graceful shutdown of application components using a LIFO approach.
-// last_updated: 2026-05-02
+// last_updated: 2026-05-03
 // type: Implementation
 // ---
 
