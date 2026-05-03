@@ -12,12 +12,20 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"math/rand/v2"
 	"time"
 )
 
 const (
 	// DefaultConnectTimeout is the default duration to wait for a database connection to be established.
 	DefaultConnectTimeout = 5 * time.Second
+
+	// WarmupMaxRetries is the maximum number of times to retry the database ping during warmup.
+	WarmupMaxRetries = 5
+	// WarmupBaseDelay is the initial delay between retries.
+	WarmupBaseDelay = 500 * time.Millisecond
+	// WarmupMaxDelay is the maximum delay between retries.
+	WarmupMaxDelay = 5 * time.Second
 )
 
 var (
@@ -146,10 +154,41 @@ func NewSQL(ctx context.Context, cfg Config) (*sql.DB, error) {
 	db.SetConnMaxIdleTime(cfg.ConnectionsMaxIdleTime)
 
 	if cfg.Warmup {
-		if err := db.PingContext(initCtx); err != nil {
-			_ = db.Close()
-			return nil, fmt.Errorf("failed to ping database: %w", err)
+		var lastErr error
+		for attempt := 0; attempt <= WarmupMaxRetries; attempt++ {
+			if err := db.PingContext(initCtx); err == nil {
+				return db, nil
+			}
+			lastErr = err
+
+			if attempt == WarmupMaxRetries {
+				break
+			}
+
+			// Calculate exponential backoff: delay = BaseDelay * 2^attempt
+			delay := time.Duration(1<<attempt) * WarmupBaseDelay
+			if delay > WarmupMaxDelay {
+				delay = WarmupMaxDelay
+			}
+
+			// Apply jitter: +/- 20%
+			jitter := time.Duration(rand.Float64() * 0.2 * float64(delay))
+			if rand.IntN(2) == 0 {
+				delay += jitter
+			} else {
+				delay -= jitter
+			}
+
+			select {
+			case <-initCtx.Done():
+				_ = db.Close()
+				return nil, fmt.Errorf("failed to ping database (timeout): %w", initCtx.Err())
+			case <-time.After(delay):
+			}
 		}
+
+		_ = db.Close()
+		return nil, fmt.Errorf("failed to ping database after %d attempts: %w", WarmupMaxRetries+1, lastErr)
 	}
 
 	return db, nil
