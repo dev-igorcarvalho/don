@@ -129,6 +129,15 @@ type Stats struct {
 	Reader sql.DBStats
 }
 
+// HealthStatus represents the aggregated health of the SQLPair.
+type HealthStatus struct {
+	WriterAlive bool
+	ReaderAlive bool
+	OpenConns   int
+	IdleConns   int
+	Message     string
+}
+
 // NewSQL creates a new sql.DB using the provided configuration.
 func NewSQL(ctx context.Context, cfg Config) (*sql.DB, error) {
 
@@ -230,6 +239,42 @@ func (p *SQLPair) Ping(ctx context.Context) error {
 	}
 
 	return errors.Join(errs...)
+}
+
+// HealthCheck performs a ping on both databases and aggregates the results and stats.
+func (p *SQLPair) HealthCheck(ctx context.Context) HealthStatus {
+	status := HealthStatus{}
+	var errs []error
+
+	if p.writer != nil {
+		if err := p.writer.PingContext(ctx); err == nil {
+			status.WriterAlive = true
+		} else {
+			errs = append(errs, fmt.Errorf("writer: %w", err))
+		}
+		stats := p.writer.Stats()
+		status.OpenConns += stats.OpenConnections
+		status.IdleConns += stats.Idle
+	}
+
+	if p.reader != nil {
+		if err := p.reader.PingContext(ctx); err == nil {
+			status.ReaderAlive = true
+		} else {
+			errs = append(errs, fmt.Errorf("reader: %w", err))
+		}
+		stats := p.reader.Stats()
+		status.OpenConns += stats.OpenConnections
+		status.IdleConns += stats.Idle
+	}
+
+	if len(errs) > 0 {
+		status.Message = errors.Join(errs...).Error()
+	} else {
+		status.Message = "OK"
+	}
+
+	return status
 }
 
 // Stats returns the aggregated statistics for both writer and reader connections.

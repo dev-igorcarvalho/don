@@ -415,6 +415,69 @@ func TestSQLPair_Ping(t *testing.T) {
 	})
 }
 
+func TestSQLPair_HealthCheck(t *testing.T) {
+	t.Run("successful health check", func(t *testing.T) {
+		cfg := validCfg
+		pair, err := NewSQLPair(context.Background(), cfg, cfg)
+		require.NoError(t, err)
+		defer pair.Close()
+
+		status := pair.HealthCheck(context.Background())
+		assert.True(t, status.WriterAlive)
+		assert.True(t, status.ReaderAlive)
+		assert.Equal(t, "OK", status.Message)
+		// mock driver stats are usually 0 unless we do work, but we verify they exist
+		assert.GreaterOrEqual(t, status.OpenConns, 0)
+		assert.GreaterOrEqual(t, status.IdleConns, 0)
+	})
+
+	t.Run("writer unhealthy", func(t *testing.T) {
+		writerCfg := validCfg
+		writerCfg.DSN = "ping_fail"
+		readerCfg := validCfg
+
+		pair, err := NewSQLPair(context.Background(), writerCfg, readerCfg)
+		require.NoError(t, err)
+		defer pair.Close()
+
+		status := pair.HealthCheck(context.Background())
+		assert.False(t, status.WriterAlive)
+		assert.True(t, status.ReaderAlive)
+		assert.Contains(t, status.Message, "writer")
+		assert.NotEqual(t, "OK", status.Message)
+	})
+
+	t.Run("reader unhealthy", func(t *testing.T) {
+		writerCfg := validCfg
+		readerCfg := validCfg
+		readerCfg.DSN = "ping_fail"
+
+		pair, err := NewSQLPair(context.Background(), writerCfg, readerCfg)
+		require.NoError(t, err)
+		defer pair.Close()
+
+		status := pair.HealthCheck(context.Background())
+		assert.True(t, status.WriterAlive)
+		assert.False(t, status.ReaderAlive)
+		assert.Contains(t, status.Message, "reader")
+	})
+
+	t.Run("both unhealthy", func(t *testing.T) {
+		cfg := validCfg
+		cfg.DSN = "ping_fail"
+
+		pair, err := NewSQLPair(context.Background(), cfg, cfg)
+		require.NoError(t, err)
+		defer pair.Close()
+
+		status := pair.HealthCheck(context.Background())
+		assert.False(t, status.WriterAlive)
+		assert.False(t, status.ReaderAlive)
+		assert.Contains(t, status.Message, "writer")
+		assert.Contains(t, status.Message, "reader")
+	})
+}
+
 func TestSQLPair_Stats(t *testing.T) {
 	cfg := validCfg
 	pair, err := NewSQLPair(context.Background(), cfg, cfg)
