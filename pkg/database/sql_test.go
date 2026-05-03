@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -64,7 +65,7 @@ func TestNewConfig(t *testing.T) {
 			5*time.Second,
 		)
 
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, "postgres", cfg.Driver)
 		assert.Equal(t, 10, cfg.MaxOpenConnections)
 		assert.Equal(t, 5, cfg.MaxIdleConnections)
@@ -86,8 +87,13 @@ func TestConfig_Validate(t *testing.T) {
 		{
 			name: "valid config",
 			config: Config{
-				Driver: "postgres",
-				DSN:    "dsn",
+				Driver:                 "postgres",
+				DSN:                    "dsn",
+				MaxOpenConnections:     10,
+				MaxIdleConnections:     5,
+				ConnectionsMaxLifetime: time.Hour,
+				ConnectionsMaxIdleTime: time.Minute,
+				ConnectTimeout:         time.Second,
 			},
 			wantErr: nil,
 		},
@@ -119,6 +125,7 @@ func TestConfig_Validate(t *testing.T) {
 			config: Config{
 				Driver:             "postgres",
 				DSN:                "dsn",
+				MaxOpenConnections: 10,
 				MaxIdleConnections: -1,
 			},
 			wantErr: ErrInvalidMaxIdleConns,
@@ -128,6 +135,8 @@ func TestConfig_Validate(t *testing.T) {
 			config: Config{
 				Driver:                 "postgres",
 				DSN:                    "dsn",
+				MaxOpenConnections:     10,
+				MaxIdleConnections:     5,
 				ConnectionsMaxLifetime: -1,
 			},
 			wantErr: ErrInvalidConnMaxLifetime,
@@ -137,6 +146,9 @@ func TestConfig_Validate(t *testing.T) {
 			config: Config{
 				Driver:                 "postgres",
 				DSN:                    "dsn",
+				MaxOpenConnections:     10,
+				MaxIdleConnections:     5,
+				ConnectionsMaxLifetime: time.Hour,
 				ConnectionsMaxIdleTime: -1,
 			},
 			wantErr: ErrInvalidConnMaxIdleTime,
@@ -144,9 +156,13 @@ func TestConfig_Validate(t *testing.T) {
 		{
 			name: "negative connect timeout",
 			config: Config{
-				Driver:         "postgres",
-				DSN:            "dsn",
-				ConnectTimeout: -1,
+				Driver:                 "postgres",
+				DSN:                    "dsn",
+				MaxOpenConnections:     10,
+				MaxIdleConnections:     5,
+				ConnectionsMaxLifetime: time.Hour,
+				ConnectionsMaxIdleTime: time.Minute,
+				ConnectTimeout:         -1,
 			},
 			wantErr: ErrInvalidConnectTimeout,
 		},
@@ -160,6 +176,16 @@ func TestConfig_Validate(t *testing.T) {
 	}
 }
 
+var validCfg = Config{
+	Driver:                 "mock",
+	DSN:                    "success",
+	MaxOpenConnections:     10,
+	MaxIdleConnections:     5,
+	ConnectionsMaxLifetime: time.Hour,
+	ConnectionsMaxIdleTime: time.Minute,
+	ConnectTimeout:         time.Second,
+}
+
 func TestNewSQL(t *testing.T) {
 	t.Run("invalid config", func(t *testing.T) {
 		cfg := Config{}
@@ -169,10 +195,9 @@ func TestNewSQL(t *testing.T) {
 	})
 
 	t.Run("invalid driver", func(t *testing.T) {
-		cfg := Config{
-			Driver: "invalid",
-			DSN:    "dsn",
-		}
+		cfg := validCfg
+		cfg.Driver = "invalid"
+
 		db, err := NewSQL(context.Background(), cfg)
 		assert.Nil(t, db)
 		assert.Error(t, err)
@@ -180,34 +205,28 @@ func TestNewSQL(t *testing.T) {
 	})
 
 	t.Run("successful connection without warmup", func(t *testing.T) {
-		cfg := Config{
-			Driver: "mock",
-			DSN:    "success",
-		}
+		cfg := validCfg
 		db, err := NewSQL(context.Background(), cfg)
-		assert.NoError(t, err)
-		assert.NotNil(t, db)
+		require.NoError(t, err)
+		require.NotNil(t, db)
 		_ = db.Close()
 	})
 
 	t.Run("successful connection with warmup", func(t *testing.T) {
-		cfg := Config{
-			Driver: "mock",
-			DSN:    "success",
-			Warmup: true,
-		}
+		cfg := validCfg
+		cfg.Warmup = true
+
 		db, err := NewSQL(context.Background(), cfg)
-		assert.NoError(t, err)
-		assert.NotNil(t, db)
+		require.NoError(t, err)
+		require.NotNil(t, db)
 		_ = db.Close()
 	})
 
 	t.Run("failed ping with warmup", func(t *testing.T) {
-		cfg := Config{
-			Driver: "mock",
-			DSN:    "ping_fail",
-			Warmup: true,
-		}
+		cfg := validCfg
+		cfg.DSN = "ping_fail"
+		cfg.Warmup = true
+
 		db, err := NewSQL(context.Background(), cfg)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to ping database")
@@ -215,39 +234,31 @@ func TestNewSQL(t *testing.T) {
 	})
 
 	t.Run("successful connection with default warmup timeout", func(t *testing.T) {
-		cfg := Config{
-			Driver: "mock",
-			DSN:    "success",
-			Warmup: true,
-			// ConnectTimeout is 0
-		}
+		cfg := validCfg
+		cfg.Warmup = true
+		cfg.ConnectTimeout = 0
+
 		db, err := NewSQL(context.Background(), cfg)
-		assert.NoError(t, err)
-		assert.NotNil(t, db)
+		require.NoError(t, err)
+		require.NotNil(t, db)
 		_ = db.Close()
 	})
 }
 
 func TestNewSQLPair(t *testing.T) {
 	t.Run("successful pair creation", func(t *testing.T) {
-		cfg := Config{
-			Driver: "mock",
-			DSN:    "success",
-		}
+		cfg := validCfg
 		pair, err := NewSQLPair(context.Background(), cfg, cfg)
-		assert.NoError(t, err)
-		assert.NotNil(t, pair)
-		assert.NotNil(t, pair.Writer)
-		assert.NotNil(t, pair.Reader)
+		require.NoError(t, err)
+		require.NotNil(t, pair)
+		assert.NotNil(t, pair.Writer())
+		assert.NotNil(t, pair.Reader())
 		_ = pair.Close()
 	})
 
 	t.Run("failed writer creation", func(t *testing.T) {
 		writerCfg := Config{}
-		readerCfg := Config{
-			Driver: "mock",
-			DSN:    "success",
-		}
+		readerCfg := validCfg
 		pair, err := NewSQLPair(context.Background(), writerCfg, readerCfg)
 		assert.Error(t, err)
 		assert.Nil(t, pair)
@@ -255,10 +266,7 @@ func TestNewSQLPair(t *testing.T) {
 	})
 
 	t.Run("failed reader creation", func(t *testing.T) {
-		writerCfg := Config{
-			Driver: "mock",
-			DSN:    "success",
-		}
+		writerCfg := validCfg
 		readerCfg := Config{}
 		pair, err := NewSQLPair(context.Background(), writerCfg, readerCfg)
 		assert.Error(t, err)
@@ -268,15 +276,13 @@ func TestNewSQLPair(t *testing.T) {
 
 	t.Run("reader failure cleanup", func(t *testing.T) {
 		closeCount = 0
-		writerCfg := Config{
-			Driver:             "mock",
-			DSN:                "success",
-			Warmup:             true,
-			MaxIdleConnections: 1,
-		}
-		readerCfg := Config{
-			Driver: "invalid",
-		}
+		writerCfg := validCfg
+		writerCfg.Warmup = true
+		writerCfg.MaxIdleConnections = 1
+
+		readerCfg := validCfg
+		readerCfg.Driver = "invalid"
+
 		pair, err := NewSQLPair(context.Background(), writerCfg, readerCfg)
 		assert.Error(t, err)
 		assert.Nil(t, pair)
@@ -286,41 +292,56 @@ func TestNewSQLPair(t *testing.T) {
 
 func TestSQLPair_Close(t *testing.T) {
 	t.Run("successful close", func(t *testing.T) {
-		cfg := Config{
-			Driver: "mock",
-			DSN:    "success",
-		}
+		cfg := validCfg
 		pair, err := NewSQLPair(context.Background(), cfg, cfg)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		err = pair.Close()
 		assert.NoError(t, err)
 	})
 
 	t.Run("failed writer close", func(t *testing.T) {
-		writerCfg := Config{Driver: "mock", DSN: "close_fail", Warmup: true, MaxIdleConnections: 1}
-		readerCfg := Config{Driver: "mock", DSN: "success", Warmup: true, MaxIdleConnections: 1}
+		writerCfg := validCfg
+		writerCfg.DSN = "close_fail"
+		writerCfg.Warmup = true
+		writerCfg.MaxIdleConnections = 1
+
+		readerCfg := validCfg
+		readerCfg.Warmup = true
+		readerCfg.MaxIdleConnections = 1
+
 		pair, err := NewSQLPair(context.Background(), writerCfg, readerCfg)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		err = pair.Close()
 		assert.ErrorContains(t, err, "failed to close writer")
 	})
 
 	t.Run("failed reader close", func(t *testing.T) {
-		writerCfg := Config{Driver: "mock", DSN: "success", Warmup: true, MaxIdleConnections: 1}
-		readerCfg := Config{Driver: "mock", DSN: "close_fail", Warmup: true, MaxIdleConnections: 1}
+		writerCfg := validCfg
+		writerCfg.Warmup = true
+		writerCfg.MaxIdleConnections = 1
+
+		readerCfg := validCfg
+		readerCfg.DSN = "close_fail"
+		readerCfg.Warmup = true
+		readerCfg.MaxIdleConnections = 1
+
 		pair, err := NewSQLPair(context.Background(), writerCfg, readerCfg)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		err = pair.Close()
 		assert.ErrorContains(t, err, "failed to close reader")
 	})
 
 	t.Run("both fail to close", func(t *testing.T) {
-		cfg := Config{Driver: "mock", DSN: "close_fail", Warmup: true, MaxIdleConnections: 1}
+		cfg := validCfg
+		cfg.DSN = "close_fail"
+		cfg.Warmup = true
+		cfg.MaxIdleConnections = 1
+
 		pair, err := NewSQLPair(context.Background(), cfg, cfg)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		err = pair.Close()
 		assert.ErrorContains(t, err, "failed to close writer")
@@ -335,60 +356,69 @@ func TestSQLPair_Close(t *testing.T) {
 }
 
 func TestSQLPair_Shutdown(t *testing.T) {
-	cfg := Config{
-		Driver: "mock",
-		DSN:    "success",
-	}
-	pair, _ := NewSQLPair(context.Background(), cfg, cfg)
+	cfg := validCfg
+	pair, err := NewSQLPair(context.Background(), cfg, cfg)
+	require.NoError(t, err)
 
-	err := pair.Shutdown(context.Background())
+	err = pair.Shutdown(context.Background())
 	assert.NoError(t, err)
 }
 
 func TestSQLPair_Ping(t *testing.T) {
 	t.Run("successful ping", func(t *testing.T) {
-		cfg := Config{Driver: "mock", DSN: "success"}
-		pair, _ := NewSQLPair(context.Background(), cfg, cfg)
+		cfg := validCfg
+		pair, err := NewSQLPair(context.Background(), cfg, cfg)
+		require.NoError(t, err)
 		defer pair.Close()
 
-		err := pair.Ping(context.Background())
+		err = pair.Ping(context.Background())
 		assert.NoError(t, err)
 	})
 
 	t.Run("writer ping fail", func(t *testing.T) {
-		writerCfg := Config{Driver: "mock", DSN: "ping_fail"}
-		readerCfg := Config{Driver: "mock", DSN: "success"}
-		pair, _ := NewSQLPair(context.Background(), writerCfg, readerCfg)
+		writerCfg := validCfg
+		writerCfg.DSN = "ping_fail"
+		readerCfg := validCfg
+
+		pair, err := NewSQLPair(context.Background(), writerCfg, readerCfg)
+		require.NoError(t, err)
 		defer pair.Close()
 
-		err := pair.Ping(context.Background())
+		err = pair.Ping(context.Background())
 		assert.ErrorContains(t, err, "writer ping failed")
 	})
 
 	t.Run("reader ping fail", func(t *testing.T) {
-		writerCfg := Config{Driver: "mock", DSN: "success"}
-		readerCfg := Config{Driver: "mock", DSN: "ping_fail"}
-		pair, _ := NewSQLPair(context.Background(), writerCfg, readerCfg)
+		writerCfg := validCfg
+		readerCfg := validCfg
+		readerCfg.DSN = "ping_fail"
+
+		pair, err := NewSQLPair(context.Background(), writerCfg, readerCfg)
+		require.NoError(t, err)
 		defer pair.Close()
 
-		err := pair.Ping(context.Background())
+		err = pair.Ping(context.Background())
 		assert.ErrorContains(t, err, "reader ping failed")
 	})
 
 	t.Run("both ping fail", func(t *testing.T) {
-		cfg := Config{Driver: "mock", DSN: "ping_fail"}
-		pair, _ := NewSQLPair(context.Background(), cfg, cfg)
+		cfg := validCfg
+		cfg.DSN = "ping_fail"
+
+		pair, err := NewSQLPair(context.Background(), cfg, cfg)
+		require.NoError(t, err)
 		defer pair.Close()
 
-		err := pair.Ping(context.Background())
+		err = pair.Ping(context.Background())
 		assert.ErrorContains(t, err, "writer ping failed")
 		assert.ErrorContains(t, err, "reader ping failed")
 	})
 }
 
 func TestSQLPair_Stats(t *testing.T) {
-	cfg := Config{Driver: "mock", DSN: "success"}
-	pair, _ := NewSQLPair(context.Background(), cfg, cfg)
+	cfg := validCfg
+	pair, err := NewSQLPair(context.Background(), cfg, cfg)
+	require.NoError(t, err)
 	defer pair.Close()
 
 	stats := pair.Stats()
