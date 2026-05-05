@@ -10,27 +10,45 @@ import (
 
 func TestNewConfig(t *testing.T) {
 	t.Run("valid configuration", func(t *testing.T) {
+		driver := "postgres"
+		dsn := "postgres://user:pass@localhost:5432/db"
+		maxOpen := 10
+		maxIdle := 5
+		lifetime := time.Hour
+		idleTime := time.Minute
+		warmup := true
+		timeout := 5 * time.Second
+
 		cfg, err := NewConfig(
-			"postgres",
-			"postgres://user:pass@localhost:5432/db",
-			10,
-			5,
-			time.Hour,
-			time.Minute,
-			true,
-			5*time.Second,
+			driver,
+			dsn,
+			maxOpen,
+			maxIdle,
+			lifetime,
+			idleTime,
+			warmup,
+			timeout,
 		)
 
 		require.NoError(t, err)
-		assert.Equal(t, "postgres", cfg.Driver)
-		assert.Equal(t, 10, cfg.MaxOpenConnections)
-		assert.Equal(t, 5, cfg.MaxIdleConnections)
-		assert.True(t, cfg.Warmup)
+		assert.Equal(t, driver, cfg.Driver)
+		assert.Equal(t, dsn, cfg.DSN)
+		assert.Equal(t, maxOpen, cfg.MaxOpenConnections)
+		assert.Equal(t, maxIdle, cfg.MaxIdleConnections)
+		assert.Equal(t, lifetime, cfg.ConnectionsMaxLifetime)
+		assert.Equal(t, idleTime, cfg.ConnectionsMaxIdleTime)
+		assert.Equal(t, warmup, cfg.Warmup)
+		assert.Equal(t, timeout, cfg.ConnectTimeout)
 	})
 
-	t.Run("invalid configuration", func(t *testing.T) {
-		_, err := NewConfig("", "", -1, -1, -1, -1, false, -1)
-		assert.Error(t, err)
+	t.Run("invalid configuration - missing driver", func(t *testing.T) {
+		_, err := NewConfig("", "dsn", 1, 1, time.Second, time.Second, false, time.Second)
+		assert.ErrorIs(t, err, ErrInvalidDriver)
+	})
+
+	t.Run("invalid configuration - negative max open", func(t *testing.T) {
+		_, err := NewConfig("postgres", "dsn", -1, 1, time.Second, time.Second, false, time.Second)
+		assert.ErrorIs(t, err, ErrInvalidMaxOpenConns)
 	})
 }
 
@@ -50,6 +68,19 @@ func TestConfig_Validate(t *testing.T) {
 				ConnectionsMaxLifetime: time.Hour,
 				ConnectionsMaxIdleTime: time.Minute,
 				ConnectTimeout:         time.Second,
+			},
+			wantErr: nil,
+		},
+		{
+			name: "valid config with zero values",
+			config: Config{
+				Driver:                 "postgres",
+				DSN:                    "dsn",
+				MaxOpenConnections:     0,
+				MaxIdleConnections:     0,
+				ConnectionsMaxLifetime: 0,
+				ConnectionsMaxIdleTime: 0,
+				ConnectTimeout:         0,
 			},
 			wantErr: nil,
 		},

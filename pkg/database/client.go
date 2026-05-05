@@ -1,6 +1,6 @@
 // ---
-// title: SQL Connection Pair
-// description: Manages a pair of SQL database connections to support read/write splitting and health monitoring.
+// title: SQL Connection Client
+// description: Manages a pair of SQL database connections to support read/write splitting and lifecycle management.
 // last_updated: 2026-05-05
 // type: Implementation
 // ---
@@ -12,6 +12,25 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"math/rand/v2"
+	"time"
+)
+
+var (
+	// DefaultConnectTimeout is the default duration to wait for a database connection to be established.
+	DefaultConnectTimeout = 5 * time.Second
+
+	// WarmupMaxRetries is the maximum number of times to retry the database ping during warmup.
+	WarmupMaxRetries = 5
+	// WarmupBaseDelay is the initial delay between retries.
+	WarmupBaseDelay = 500 * time.Millisecond
+	// WarmupMaxDelay is the maximum delay between retries.
+	WarmupMaxDelay = 5 * time.Second
+)
+
+var (
+	ErrNoOptions      = errors.New("at least one database option must be provided")
+	ErrWriterRequired = errors.New("writer configuration is required (use WithWriter)")
 )
 
 // Client manages a pair of database connections for read/write splitting.
@@ -30,105 +49,43 @@ func (p *Client) Reader() *sql.DB {
 	return p.reader
 }
 
-// Stats holds aggregated statistics for the database connections.
-type Stats struct {
-	Writer sql.DBStats
-	Reader sql.DBStats
-}
+// NewClient creates a new Client using the provided options.
+func NewClient(ctx context.Context, opts ...Option) (*Client, error) {
+	if len(opts) == 0 {
+		return nil, ErrNoOptions
+	}
 
-// HealthStatus represents the aggregated health of the Client.
-type HealthStatus struct {
-	WriterAlive bool
-	ReaderAlive bool
-	OpenConns   int
-	IdleConns   int
-	Message     string
-}
+	var cfg options
+	for _, opt := range opts {
+		opt(&cfg)
+	}
 
-// NewClient creates a new Client using the provided writer and reader configurations.
-func NewClient(ctx context.Context, writerCfg, readerCfg Config) (*Client, error) {
-	writer, err := newSQL(ctx, writerCfg)
+	// Writer is mandatory
+	if cfg.writer == nil {
+		return nil, ErrWriterRequired
+	}
+
+	client := &Client{}
+
+	// Initialize Writer
+	writer, err := newSQL(ctx, *cfg.writer)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize writer: %w", err)
 	}
+	client.writer = writer
 
-	reader, err := newSQL(ctx, readerCfg)
-	if err != nil {
-		_ = writer.Close()
-		return nil, fmt.Errorf("failed to initialize reader: %w", err)
-	}
-
-	return &Client{
-		writer: writer,
-		reader: reader,
-	}, nil
-}
-
-// Ping verifies the connectivity to both writer and reader databases.
-func (p *Client) Ping(ctx context.Context) error {
-	var errs []error
-
-	if p.writer != nil {
-		if err := p.writer.PingContext(ctx); err != nil {
-			errs = append(errs, fmt.Errorf("writer ping failed: %w", err))
+	// Initialize Reader if provided
+	if cfg.reader != nil {
+		reader, err := newSQL(ctx, *cfg.reader)
+		if err != nil {
+			// Clean up writer if reader fails
+			_ = client.writer.Close()
+			return nil, fmt.Errorf("failed to initialize reader: %w", err)
 		}
+		client.reader = reader
 	}
 
-	if p.reader != nil {
-		if err := p.reader.PingContext(ctx); err != nil {
-			errs = append(errs, fmt.Errorf("reader ping failed: %w", err))
-		}
-	}
-
-	return errors.Join(errs...)
-}
-
-// HealthCheck performs a ping on both databases and aggregates the results and stats.
-func (p *Client) HealthCheck(ctx context.Context) HealthStatus {
-	status := HealthStatus{}
-	var errs []error
-
-	if p.writer != nil {
-		if err := p.writer.PingContext(ctx); err == nil {
-			status.WriterAlive = true
-		} else {
-			errs = append(errs, fmt.Errorf("writer: %w", err))
-		}
-		stats := p.writer.Stats()
-		status.OpenConns += stats.OpenConnections
-		status.IdleConns += stats.Idle
-	}
-
-	if p.reader != nil {
-		if err := p.reader.PingContext(ctx); err == nil {
-			status.ReaderAlive = true
-		} else {
-			errs = append(errs, fmt.Errorf("reader: %w", err))
-		}
-		stats := p.reader.Stats()
-		status.OpenConns += stats.OpenConnections
-		status.IdleConns += stats.Idle
-	}
-
-	if len(errs) > 0 {
-		status.Message = errors.Join(errs...).Error()
-	} else {
-		status.Message = "OK"
-	}
-
-	return status
-}
-
-// Stats returns the aggregated statistics for both writer and reader connections.
-func (p *Client) Stats() Stats {
-	var stats Stats
-	if p.writer != nil {
-		stats.Writer = p.writer.Stats()
-	}
-	if p.reader != nil {
-		stats.Reader = p.reader.Stats()
-	}
-	return stats
+	return client, nil
 }
 
 // Close closes both writer and reader connections.
@@ -147,10 +104,77 @@ func (p *Client) Close() error {
 		p.reader = nil
 	}
 
-	return errors.Join(errs...)
+	if len(errs) > 0 {
+		return errors.Join(errs...)
+	}
+	return nil
 }
 
 // Shutdown gracefully shuts down the database connections.
 func (p *Client) Shutdown(_ context.Context) error {
 	return p.Close()
+}
+
+// newSQL creates a new sql.DB using the provided configuration.
+func newSQL(ctx context.Context, cfg Config) (*sql.DB, error) {
+
+	if err := cfg.Validate(); err != nil {
+		return nil, fmt.Errorf("database driver config is invalid: %w", err)
+	}
+
+	timeout := cfg.ConnectTimeout
+	if timeout == 0 {
+		timeout = DefaultConnectTimeout
+	}
+	initCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	db, err := sql.Open(cfg.Driver, cfg.DSN)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open database: %w", err)
+	}
+
+	db.SetMaxOpenConns(cfg.MaxOpenConnections)
+	db.SetMaxIdleConns(cfg.MaxIdleConnections)
+	db.SetConnMaxLifetime(cfg.ConnectionsMaxLifetime)
+	db.SetConnMaxIdleTime(cfg.ConnectionsMaxIdleTime)
+
+	if cfg.Warmup {
+		var lastErr error
+		for attempt := 0; attempt <= WarmupMaxRetries; attempt++ {
+			if err := db.PingContext(initCtx); err == nil {
+				return db, nil
+			}
+			lastErr = err
+
+			if attempt == WarmupMaxRetries {
+				break
+			}
+
+			// Calculate exponential backoff: delay = BaseDelay * 2^attempt
+			delay := time.Duration(1<<attempt) * WarmupBaseDelay
+			if delay > WarmupMaxDelay {
+				delay = WarmupMaxDelay
+			}
+
+			// Apply jitter: +/- 20%
+			jitter := time.Duration(rand.Float64() * 0.2 * float64(delay))
+			if rand.IntN(2) == 0 {
+				delay += jitter
+			} else {
+				delay -= jitter
+			}
+
+			select {
+			case <-initCtx.Done():
+				_ = db.Close()
+				return nil, fmt.Errorf("failed to ping database (timeout): %w", initCtx.Err())
+			case <-time.After(delay):
+			}
+		}
+
+		_ = db.Close()
+		return nil, fmt.Errorf("failed to ping database after %d attempts: %w", WarmupMaxRetries+1, lastErr)
+	}
+	return db, nil
 }

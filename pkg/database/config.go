@@ -12,18 +12,6 @@ import (
 	"time"
 )
 
-const (
-	// DefaultConnectTimeout is the default duration to wait for a database connection to be established.
-	DefaultConnectTimeout = 5 * time.Second
-
-	// WarmupMaxRetries is the maximum number of times to retry the database ping during warmup.
-	WarmupMaxRetries = 5
-	// WarmupBaseDelay is the initial delay between retries.
-	WarmupBaseDelay = 500 * time.Millisecond
-	// WarmupMaxDelay is the maximum delay between retries.
-	WarmupMaxDelay = 5 * time.Second
-)
-
 var (
 	ErrInvalidDriver          = errors.New("database driver is required")
 	ErrInvalidDSN             = errors.New("database DSN is required")
