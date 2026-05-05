@@ -60,14 +60,21 @@ The application uses environment variables for configuration. The following vari
 - Use the `must` helper in `main.go` for critical initialization errors.
 - Prefer explicit error handling and wrapping for business logic.
 
+### 5. Consumer-Side Interfaces (CRITICAL)
+- **NEVER** define interfaces in the package that implements them (producer-side).
+- **ALWAYS** define interfaces in the package that consumes the behavior (consumer-side).
+- This is a non-negotiable Go standard for this project to ensure loose coupling and satisfy the Interface Segregation Principle.
+
 ## 🧠 Knowledge Base
 All architectural decisions, domain rules, and developer guides are maintained in the [Internal Wiki](docs/improvements/gemini/index.md).
 
 ## Gemini CLI Directives
+- **No Unauthorized Commits:** NEVER, absolutely never, commit anything without explicit user permission for each commit.
 - **Mandatory Planning:** ALWAYS create a plan, let the user review it, and only implement it after receiving explicit approval. Always ask first.
 - **Go Standards:** Always activate the `go-standards` skill before performing any Go-related coding tasks to ensure compliance with project and language conventions.
 - **Semantic Commits:** Always use the `semantic-commit` skill for all commits to maintain a consistent and structured commit history.
 - **Post-Execution:** ALWAYS run the command `/batch-parallel-frontmatter` after a successful execution.
+- **Consumer-Side Interfaces:** NEVER define interfaces in the producer package. Interfaces MUST live in the consumer package. This is a hard requirement for all Go code in this project.
 
 
 ---

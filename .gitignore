@@ -36,6 +36,8 @@ vcs.xml
 workspace.xml
 go.imports.xml
 
+bin/
+api
 
 docs/improvements
 vendor/
