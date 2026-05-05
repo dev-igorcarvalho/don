@@ -193,6 +193,34 @@ func TestNewSQL(t *testing.T) {
 		assert.Contains(t, err.Error(), "timeout")
 		assert.Nil(t, db)
 	})
+
+	t.Run("warmup jitter and max delay coverage", func(t *testing.T) {
+		// Save and restore
+		oldRetries := WarmupMaxRetries
+		oldBase := WarmupBaseDelay
+		oldMax := WarmupMaxDelay
+		defer func() {
+			WarmupMaxRetries = oldRetries
+			WarmupBaseDelay = oldBase
+			WarmupMaxDelay = oldMax
+		}()
+
+		// Set max retries high enough to statistically guarantee both jitter paths
+		// and to easily exceed the max delay.
+		WarmupMaxRetries = 20
+		WarmupBaseDelay = 1 * time.Millisecond
+		// Set max delay low so that exponential backoff quickly exceeds it
+		WarmupMaxDelay = 2 * time.Millisecond
+
+		cfg := validCfg
+		cfg.DSN = dsnPingFail
+		cfg.Warmup = true
+
+		db, err := newSQL(context.Background(), cfg)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to ping database after 21 attempts")
+		assert.Nil(t, db)
+	})
 }
 
 func TestNewSQLPair(t *testing.T) {
