@@ -42,7 +42,7 @@ func run() error {
 	// Initialize Database
 	dbWriterConfig := must.Get(dbCfg.Writer.ToSqlConnectorConfig())
 	dbReaderConfig := must.Get(dbCfg.Reader.ToSqlConnectorConfig())
-	sqlPair := must.Get(database.NewSQLPair(ctx, dbWriterConfig, dbReaderConfig))
+	sqlPair := must.Get(database.NewClient(ctx, dbWriterConfig, dbReaderConfig))
 
 	lm := lifecycle.NewManager(shutdownTimeout)
 	srv := wireServer(ctx, appCfg)
