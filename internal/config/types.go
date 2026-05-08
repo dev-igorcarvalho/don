@@ -51,5 +51,6 @@ func (c SqlConfig) ToSqlConnectorConfig() (database.Config, error) {
 		c.ConnMaxIdleTime,
 		c.Warmup,
 		c.ConnectTimeout,
+		c.QueryTimeout,
 	)
 }
