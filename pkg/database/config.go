@@ -1,7 +1,7 @@
 // ---
 // title: Database Configuration
 // description: Defines the configuration structure and validation logic for database connections.
-// last_updated: 2026-05-05
+// last_updated: 2026-05-08
 // type: Configuration
 // ---
 
@@ -20,6 +20,7 @@ var (
 	ErrInvalidConnMaxLifetime = errors.New("conn max lifetime cannot be negative")
 	ErrInvalidConnMaxIdleTime = errors.New("conn max idle time cannot be negative")
 	ErrInvalidConnectTimeout  = errors.New("connect timeout cannot be negative")
+	ErrInvalidQueryTimeout    = errors.New("query timeout cannot be negative")
 )
 
 // Config holds the database connection settings.
@@ -32,6 +33,7 @@ type Config struct {
 	ConnectionsMaxIdleTime time.Duration
 	Warmup                 bool
 	ConnectTimeout         time.Duration
+	QueryTimeout           time.Duration
 }
 
 // NewConfig creates a new database configuration and validates it.
@@ -44,6 +46,7 @@ func NewConfig(
 	connMaxIdleTime time.Duration,
 	warmup bool,
 	connectTimeout time.Duration,
+	queryTimeout time.Duration,
 ) (Config, error) {
 	cfg := Config{
 		Driver:                 driver,
@@ -54,6 +57,7 @@ func NewConfig(
 		ConnectionsMaxIdleTime: connMaxIdleTime,
 		Warmup:                 warmup,
 		ConnectTimeout:         connectTimeout,
+		QueryTimeout:           queryTimeout,
 	}
 
 	if err := cfg.Validate(); err != nil {
@@ -87,6 +91,9 @@ func (c Config) Validate() error {
 	// Note: 0 triggers DefaultConnectTimeout in newSQL.
 	if c.ConnectTimeout < 0 {
 		return ErrInvalidConnectTimeout
+	}
+	if c.QueryTimeout < 0 {
+		return ErrInvalidQueryTimeout
 	}
 	return nil
 }

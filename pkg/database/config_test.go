@@ -18,6 +18,7 @@ func TestNewConfig(t *testing.T) {
 		idleTime := time.Minute
 		warmup := true
 		timeout := 5 * time.Second
+		queryTimeout := 3 * time.Second
 
 		cfg, err := NewConfig(
 			driver,
@@ -28,6 +29,7 @@ func TestNewConfig(t *testing.T) {
 			idleTime,
 			warmup,
 			timeout,
+			queryTimeout,
 		)
 
 		require.NoError(t, err)
@@ -39,16 +41,17 @@ func TestNewConfig(t *testing.T) {
 		assert.Equal(t, idleTime, cfg.ConnectionsMaxIdleTime)
 		assert.Equal(t, warmup, cfg.Warmup)
 		assert.Equal(t, timeout, cfg.ConnectTimeout)
+		assert.Equal(t, queryTimeout, cfg.QueryTimeout)
 	})
 
 	t.Run("invalid configuration - missing driver", func(t *testing.T) {
-		_, err := NewConfig("", "dsn", 1, 1, time.Second, time.Second, false, time.Second)
+		_, err := NewConfig("", "dsn", 1, 1, time.Second, time.Second, false, time.Second, time.Second)
 		assert.ErrorIs(t, err, ErrInvalidDriver)
 	})
 
-	t.Run("invalid configuration - negative max open", func(t *testing.T) {
-		_, err := NewConfig("postgres", "dsn", -1, 1, time.Second, time.Second, false, time.Second)
-		assert.ErrorIs(t, err, ErrInvalidMaxOpenConns)
+	t.Run("invalid configuration - negative query timeout", func(t *testing.T) {
+		_, err := NewConfig("postgres", "dsn", 1, 1, time.Second, time.Second, false, time.Second, -1)
+		assert.ErrorIs(t, err, ErrInvalidQueryTimeout)
 	})
 }
 
@@ -68,6 +71,7 @@ func TestConfig_Validate(t *testing.T) {
 				ConnectionsMaxLifetime: time.Hour,
 				ConnectionsMaxIdleTime: time.Minute,
 				ConnectTimeout:         time.Second,
+				QueryTimeout:           time.Second,
 			},
 			wantErr: nil,
 		},
@@ -81,13 +85,15 @@ func TestConfig_Validate(t *testing.T) {
 				ConnectionsMaxLifetime: 0,
 				ConnectionsMaxIdleTime: 0,
 				ConnectTimeout:         0,
+				QueryTimeout:           0,
 			},
 			wantErr: nil,
 		},
 		{
 			name: "missing driver",
 			config: Config{
-				DSN: "dsn",
+				Driver: "",
+				DSN:    "dsn",
 			},
 			wantErr: ErrInvalidDriver,
 		},
@@ -95,6 +101,7 @@ func TestConfig_Validate(t *testing.T) {
 			name: "missing dsn",
 			config: Config{
 				Driver: "postgres",
+				DSN:    "",
 			},
 			wantErr: ErrInvalidDSN,
 		},
@@ -112,7 +119,6 @@ func TestConfig_Validate(t *testing.T) {
 			config: Config{
 				Driver:             "postgres",
 				DSN:                "dsn",
-				MaxOpenConnections: 10,
 				MaxIdleConnections: -1,
 			},
 			wantErr: ErrInvalidMaxIdleConns,
@@ -122,8 +128,6 @@ func TestConfig_Validate(t *testing.T) {
 			config: Config{
 				Driver:                 "postgres",
 				DSN:                    "dsn",
-				MaxOpenConnections:     10,
-				MaxIdleConnections:     5,
 				ConnectionsMaxLifetime: -1,
 			},
 			wantErr: ErrInvalidConnMaxLifetime,
@@ -133,9 +137,6 @@ func TestConfig_Validate(t *testing.T) {
 			config: Config{
 				Driver:                 "postgres",
 				DSN:                    "dsn",
-				MaxOpenConnections:     10,
-				MaxIdleConnections:     5,
-				ConnectionsMaxLifetime: time.Hour,
 				ConnectionsMaxIdleTime: -1,
 			},
 			wantErr: ErrInvalidConnMaxIdleTime,
@@ -143,15 +144,20 @@ func TestConfig_Validate(t *testing.T) {
 		{
 			name: "negative connect timeout",
 			config: Config{
-				Driver:                 "postgres",
-				DSN:                    "dsn",
-				MaxOpenConnections:     10,
-				MaxIdleConnections:     5,
-				ConnectionsMaxLifetime: time.Hour,
-				ConnectionsMaxIdleTime: time.Minute,
-				ConnectTimeout:         -1,
+				Driver:         "postgres",
+				DSN:            "dsn",
+				ConnectTimeout: -1,
 			},
 			wantErr: ErrInvalidConnectTimeout,
+		},
+		{
+			name: "negative query timeout",
+			config: Config{
+				Driver:       "postgres",
+				DSN:          "dsn",
+				QueryTimeout: -1,
+			},
+			wantErr: ErrInvalidQueryTimeout,
 		},
 	}
 

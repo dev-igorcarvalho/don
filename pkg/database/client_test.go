@@ -14,10 +14,12 @@ import (
 )
 
 const (
-	dsnCloseFail = "close_fail"
-	dsnPingFail  = "ping_fail"
-	dsnExecFail  = "exec_fail"
-	dsnQueryFail = "query_fail"
+	dsnCloseFail  = "close_fail"
+	dsnPingFail   = "ping_fail"
+	dsnExecFail   = "exec_fail"
+	dsnQueryFail  = "query_fail"
+	dsnBeginFail  = "begin_fail"
+	dsnCommitFail = "commit_fail"
 )
 
 var (
@@ -46,7 +48,25 @@ func (m *mockConn) Close() error {
 	}
 	return nil
 }
-func (m *mockConn) Begin() (driver.Tx, error) { return nil, nil }
+
+func (m *mockConn) Begin() (driver.Tx, error) {
+	if m.name == dsnBeginFail {
+		return nil, errors.New("begin failed")
+	}
+	return &mockTx{name: m.name}, nil
+}
+
+type mockTx struct {
+	name string
+}
+
+func (m *mockTx) Commit() error {
+	if m.name == dsnCommitFail {
+		return errors.New("commit failed")
+	}
+	return nil
+}
+func (m *mockTx) Rollback() error { return nil }
 
 // Exec support for mockConn
 func (m *mockConn) Exec(query string, args []driver.Value) (driver.Result, error) {
@@ -71,11 +91,20 @@ func (s *mockStmt) NumInput() int                                   { return -1 
 func (s *mockStmt) Exec(args []driver.Value) (driver.Result, error) { return nil, nil }
 func (s *mockStmt) Query(args []driver.Value) (driver.Rows, error)  { return nil, nil }
 
-type mockRows struct{}
+type mockRows struct {
+	last int
+}
 
-func (r *mockRows) Columns() []string              { return []string{"col1"} }
-func (r *mockRows) Close() error                   { return nil }
-func (r *mockRows) Next(dest []driver.Value) error { return io.EOF }
+func (r *mockRows) Columns() []string { return []string{"col1"} }
+func (r *mockRows) Close() error      { return nil }
+func (r *mockRows) Next(dest []driver.Value) error {
+	if r.last > 0 {
+		return io.EOF
+	}
+	r.last++
+	dest[0] = 1
+	return nil
+}
 
 // Ping support for mockConn
 func (m *mockConn) Ping(ctx context.Context) error {
@@ -94,9 +123,11 @@ var validCfg = Config{
 	DSN:                    "success",
 	MaxOpenConnections:     10,
 	MaxIdleConnections:     5,
-	ConnectionsMaxLifetime: time.Hour,
-	ConnectionsMaxIdleTime: time.Minute,
-	ConnectTimeout:         time.Second,
+	ConnectionsMaxLifetime: 1 * time.Hour,
+	ConnectionsMaxIdleTime: 30 * time.Minute,
+	Warmup:                 false,
+	ConnectTimeout:         1 * time.Second,
+	QueryTimeout:           5 * time.Second,
 }
 
 func TestNewSQL(t *testing.T) {

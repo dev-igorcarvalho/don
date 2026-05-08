@@ -1,7 +1,7 @@
 // ---
 // title: SQL Connection Client
 // description: Manages a pair of SQL database connections to support read/write splitting and lifecycle management.
-// last_updated: 2026-05-05
+// last_updated: 2026-05-08
 // type: Implementation
 // ---
 
@@ -19,6 +19,8 @@ import (
 var (
 	// DefaultConnectTimeout is the default duration to wait for a database connection to be established.
 	DefaultConnectTimeout = 5 * time.Second
+	// DefaultQueryTimeout is the default duration to wait for a database query to complete.
+	DefaultQueryTimeout = 30 * time.Second
 
 	// WarmupMaxRetries is the maximum number of times to retry the database ping during warmup.
 	WarmupMaxRetries = 5
@@ -33,10 +35,13 @@ var (
 	ErrWriterRequired = errors.New("writer configuration is required (use WithWriter)")
 )
 
+// todo: talvez dividir em subscturcs nao exportados
 // Client manages a pair of database connections for read/write splitting.
 type Client struct {
-	writer *sql.DB
-	reader *sql.DB
+	writer        *sql.DB
+	reader        *sql.DB
+	writerTimeout time.Duration
+	readerTimeout time.Duration
 }
 
 // Writer returns the writer database connection.
@@ -65,7 +70,14 @@ func NewClient(ctx context.Context, opts ...Option) (*Client, error) {
 		return nil, ErrWriterRequired
 	}
 
-	client := &Client{}
+	writerTimeout := cfg.writer.QueryTimeout
+	if writerTimeout == 0 {
+		writerTimeout = DefaultQueryTimeout
+	}
+
+	client := &Client{
+		writerTimeout: writerTimeout,
+	}
 
 	// Initialize Writer
 	writer, err := newSQL(ctx, *cfg.writer)
@@ -76,6 +88,12 @@ func NewClient(ctx context.Context, opts ...Option) (*Client, error) {
 
 	// Initialize Reader if provided
 	if cfg.reader != nil {
+		readerTimeout := cfg.reader.QueryTimeout
+		if readerTimeout == 0 {
+			readerTimeout = DefaultQueryTimeout
+		}
+		client.readerTimeout = readerTimeout
+
 		reader, err := newSQL(ctx, *cfg.reader)
 		if err != nil {
 			// Clean up writer if reader fails
