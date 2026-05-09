@@ -23,9 +23,19 @@ test:
 	go test -v ./...
 
 build:
-	@echo "Building api..."
+	@echo "Building binaries..."
 	go build -o bin/api ./cmd/api
+	go build -o bin/migrations ./cmd/migrations
 
 run:
 	@echo "Running api..."
 	go run cmd/api/main.go
+
+# Database Migrations
+db-migrate: ## Run migrations
+	@echo "Running migrations..."
+	go run cmd/migrations/main.go
+
+db-migrate-seed: ## Run migrations and seeds
+	@echo "Running migrations and seeds..."
+	go run cmd/migrations/main.go -seed

@@ -1,7 +1,7 @@
 // ---
 // title: Application Configuration Types
 // description: Defines the structures and validation logic for application and database configurations.
-// last_updated: 2026-05-03
+// last_updated: 2026-05-09
 // type: Configuration
 // ---
 
@@ -42,6 +42,7 @@ type SqlConfig struct {
 }
 
 func (c SqlConfig) ToSqlConnectorConfig() (database.Config, error) {
+	//TODO use the dns factory here ?
 	return database.NewConfig(
 		c.Driver,
 		c.DSN,

@@ -1,7 +1,7 @@
 // ---
 // title: API Entry Point
 // description: Main entry point for the REST API service, responsible for configuration loading, server wiring, and graceful shutdown.
-// last_updated: 2026-05-05
+// last_updated: 2026-05-09
 // type: EntryPoint
 // ---
 
@@ -39,9 +39,9 @@ func run() error {
 	dbCfg := must.Get(pkgConfig.Load[config.SqlDbConfig]())
 	logger.Setup(logger.Environment(appCfg.Environment))
 
-	// Initialize Database
 	dbWriterConfig := must.Get(dbCfg.Writer.ToSqlConnectorConfig())
 	dbReaderConfig := must.Get(dbCfg.Reader.ToSqlConnectorConfig())
+
 	sqlPair := must.Get(database.NewClient(ctx,
 		database.WithWriter(dbWriterConfig),
 		database.WithReader(dbReaderConfig),
@@ -49,12 +49,10 @@ func run() error {
 
 	lm := lifecycle.NewManager(shutdownTimeout)
 	srv := wireServer(ctx, appCfg)
-
 	// Register components for graceful shutdown
 	lm.Register("database", sqlPair)
 	lm.Register("api-server", srv)
 
-	// Start server
 	go func() {
 		logger.Info(ctx, "starting server", slog.String("port", appCfg.HTTPPort))
 		if err := srv.Start(); err != nil && !errors.Is(err, http.ErrServerClosed) {

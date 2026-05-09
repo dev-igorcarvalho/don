@@ -37,7 +37,9 @@ workspace.xml
 go.imports.xml
 
 bin/
+main
 api
+migrations
 
 docs/improvements
 vendor/

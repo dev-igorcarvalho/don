@@ -32,7 +32,7 @@ func TestExtractDefaultAttributesFromContext(t *testing.T) {
 	keys := []string{"trace_id", "tenant_id"}
 
 	t.Run("nil context", func(t *testing.T) {
-		attrs := extractDefaultAttributesFromContext(nil, keys)
+		attrs := extractDefaultAttributesFromContext(context.TODO(), keys)
 		assert.Empty(t, attrs)
 	})
 
@@ -120,8 +120,10 @@ func TestLogging(t *testing.T) {
 		require.Len(t, lines, 2)
 
 		var log1, log2 map[string]interface{}
-		json.Unmarshal([]byte(lines[0]), &log1)
-		json.Unmarshal([]byte(lines[1]), &log2)
+		err := json.Unmarshal([]byte(lines[0]), &log1)
+		require.NoError(t, err)
+		err = json.Unmarshal([]byte(lines[1]), &log2)
+		require.NoError(t, err)
 
 		assert.Equal(t, "WARN", log1["level"])
 		assert.Equal(t, "ERROR", log2["level"])
