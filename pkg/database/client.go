@@ -35,7 +35,6 @@ var (
 	ErrWriterRequired = errors.New("writer configuration is required (use WithWriter)")
 )
 
-// todo: talvez dividir em subscturcs nao exportados
 // Client manages a pair of database connections for read/write splitting.
 type Client struct {
 	writer        *sql.DB

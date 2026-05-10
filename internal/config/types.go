@@ -42,7 +42,6 @@ type SqlConfig struct {
 }
 
 func (c SqlConfig) ToSqlConnectorConfig() (database.Config, error) {
-	//TODO use the dns factory here ?
 	return database.NewConfig(
 		c.Driver,
 		c.DSN,

@@ -25,7 +25,6 @@ type Server interface {
 
 // Handler is the interface that all route handlers must implement.
 // This enforces the use of handler structs.
-// todo review this because is coupled to echo
 type Handler interface {
 	Handle(c echo.Context) error
 }

@@ -110,7 +110,6 @@ func (p *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, err
 //   - If 'fn' succeeds (returns nil), the transaction is committed.
 //   - If the commit itself fails, that error is returned.
 func (p *Client) InTransaction(ctx context.Context, opts *sql.TxOptions, fn TxFunc) (err error) {
-	// todo revisar essa implementação, ainda nao achei 100%
 	ctx, cancel := p.ensureContextWithTimeout(ctx, p.writerTimeout)
 	if cancel != nil {
 		defer cancel()
