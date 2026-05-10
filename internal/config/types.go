@@ -1,7 +1,7 @@
 // ---
 // title: Application Configuration Types
 // description: Defines the structures and validation logic for application and database configurations.
-// last_updated: 2026-05-09
+// last_updated: 2026-05-10
 // type: Configuration
 // ---
 

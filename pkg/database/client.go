@@ -1,7 +1,7 @@
 // ---
 // title: SQL Connection Client
 // description: Manages a pair of SQL database connections to support read/write splitting and lifecycle management.
-// last_updated: 2026-05-08
+// last_updated: 2026-05-10
 // type: Implementation
 // ---
 

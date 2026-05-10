@@ -1,7 +1,7 @@
 // ---
 // title: Database Operations
 // description: Provides SQL operations (Query, Exec, Transactions) with automatic read/write splitting, default timeouts, and forced master reads.
-// last_updated: 2026-05-09
+// last_updated: 2026-05-10
 // type: Implementation
 // ---
 
