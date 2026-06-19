@@ -40,24 +40,24 @@ This document tracks the implementation of core infrastructure components and AW
   - [x] Implementar limitador simples por IP com headers de feedback.
 
 ## 3. Camada de Persistência (Database)
-- [ ] **Pool Management & Fine-Tuning**
+- [x] **Pool Management & Fine-Tuning**
   - [x] Configurar limites explícitos de conexões (`MaxOpen`, `MaxIdle`, `Lifetime`).
-  - [ ] Implementar Health Check/Ping agressivo no startup.
+  - [x] Implementar Health Check/Ping agressivo no startup.
 - [ ] **Abstração de Transações (Unit of Work)**
-  - [ ] Implementar padrão *Atomic* via callback para evitar vazamento de `sql.Tx`.
+  - [x] Implementar padrão *Atomic* via callback para evitar vazamento de `sql.Tx`.
   - [ ] (Opcional) Implementar transação via `context.Context`.
 - [ ] **Resiliência de Operações**
-  - [ ] Forçar uso de `QueryContext` / `ExecContext`.
-  - [ ] Definir timeouts específicos por query.
+  - [x] Forçar uso de `QueryContext` / `ExecContext`.
+  - [x] Definir timeouts específicos por query.
   - [ ] Implementar Circuit Breaker básico para falhas consecutivas.
 - [ ] **Observabilidade de Banco**
   - [ ] Implementar *Slow Query Logging* para consultas acima de um threshold.
   - [ ] Deixar gancho para Tracing Integrado.
 - [ ] **Tratamento de Erros de Infra**
   - [ ] Mapear erros específicos do driver para erros de domínio (*Sentinel Errors*).
-- [ ] **Migrations & Seeding**
-  - [ ] Integrar execução de migrations ao ciclo de vida da aplicação.
-  - [ ] Garantir idempotência em scripts de semente (*seeding*).
+- [x] **Migrations & Seeding**
+  - [x] Integrar execução de migrations ao ciclo de vida da aplicação.
+  - [x] Garantir idempotência em scripts de semente (*seeding*).
 
 ## 4. Funcionalidades Avançadas (Staff Level)
 - [ ] **Paginação Baseada em Cursor**
@@ -80,8 +80,12 @@ This document tracks the implementation of core infrastructure components and AW
 ## 🌐 HTTP Client
 - [ ] **Implement `pkg/httpclient`**
   - [ ] Resilient wrapper around `net/http`.
-  - [ ] Support for middleware (logging, correlation IDs, retries).
+  - [ ] Support for retires with exponenctial backoff and jitter
+  - [ ] the Client must have retryTimes, retryStatusCodes []
+  - [ ] the client must have a 
   - [ ] Timeout management and context propagation.
+  - [ ] customized responses struct {statusCode, body,headers, etc} all unexported
+  - [ ]customized responses struct methods {isSuccess, isServerError, isClientError, statusCode, body, headers} all exported
 - [ ] **Define Consumer-Side Interfaces**
   - [ ] Ports defined in `internal/core/usecases` (as needed).
 - [ ] **Implement Adapters**

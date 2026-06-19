@@ -66,7 +66,7 @@ The application uses environment variables for configuration. The following vari
 - This is a non-negotiable Go standard for this project to ensure loose coupling and satisfy the Interface Segregation Principle.
 
 ## 🧠 Knowledge Base
-All architectural decisions, domain rules, and developer guides are maintained in the [Internal Wiki](docs/improvements/gemini/index.md).
+All architectural decisions, domain rules, and developer guides are maintained in the [Internal Wiki](docs/internal_reference/improvements/gemini/index.md).
 
 ## Gemini CLI Directives
 - **No Unauthorized Commits:** NEVER, absolutely never, commit anything without explicit user permission for each commit.
