@@ -1,0 +1,23 @@
+{
+  "security": {
+    "folderTrust": {
+      "enabled": true
+    }
+  },
+  "hooks": {
+    "BeforeAgent": [
+    ],
+    "AfterAgent": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "name": "Linter",
+            "type": "command",
+            "command": ".gemini/lint.sh"
+          }
+        ]
+      }
+    ]
+  }
+}

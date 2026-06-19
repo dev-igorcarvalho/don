@@ -1,0 +1,5 @@
+[[rule]]
+toolName = "*"
+toolAnnotations = { readOnlyHint = true }
+decision = "allow"
+priority = 100
