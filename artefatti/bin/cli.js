@@ -77,16 +77,16 @@ function setup() {
     }
 
     const workflowSrc = path.join(sourceAssetsDir, 'rules/workflow.md');
-    const workflowDest = path.join(claudeRulesDir, 'workflow.md');
+    const workflowDest = path.join(claudeRulesDir, 'pipeline-workflow-rules.md');
 
     if (!fs.existsSync(workflowSrc)) {
-      console.error(`❌ Source file not found in assets: rules/workflow.md`);
+      console.error(`❌ Source file not found in assets: rules/pipeline-workflow-rules.md`);
     } else {
       try {
         fs.copyFileSync(workflowSrc, workflowDest);
         console.log(`Copied (and overwrote) file: ${path.relative(targetDir, workflowDest)}`);
       } catch (err) {
-        console.error(`❌ Error copying rules/workflow.md to .claude:`, err.message);
+        console.error(`❌ Error copying rules/pipeline-workflow-rules.md to .claude:`, err.message);
       }
     }
   }

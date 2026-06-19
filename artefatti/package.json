@@ -1,0 +1,25 @@
+{
+  "name": "don-artefatti",
+  "version": "1.0.0",
+  "description": "Scaffolds .artefatti workspace structure for agentic pipeline orchestration",
+  "main": "bin/cli.js",
+  "bin": {
+    "don-artefatti": "./bin/cli.js"
+  },
+  "files": [
+    "bin/",
+    "assets/"
+  ],
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "keywords": [
+    "agentic",
+    "orchestrator",
+    "artefatti",
+    "pipelines",
+    "installer"
+  ],
+  "author": "Don",
+  "license": "MIT"
+}
