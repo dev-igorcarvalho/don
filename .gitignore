@@ -41,5 +41,10 @@ main
 api
 migrations
 
-docs/improvements
+docs/internal_reference/improvements
 vendor/
+/docs/internal_reference/
+
+# npm
+artefatti/.npmrc
+
