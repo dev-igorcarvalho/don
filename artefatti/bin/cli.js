@@ -79,11 +79,15 @@ function setup() {
     const workflowSrc = path.join(sourceAssetsDir, 'rules/workflow.md');
     const workflowDest = path.join(claudeRulesDir, 'workflow.md');
 
-    try {
-      fs.copyFileSync(workflowSrc, workflowDest);
-      console.log(`Copied (and overwrote) file: ${path.relative(targetDir, workflowDest)}`);
-    } catch (err) {
-      console.error(`❌ Error copying rules/workflow.md to .claude:`, err.message);
+    if (!fs.existsSync(workflowSrc)) {
+      console.error(`❌ Source file not found in assets: rules/workflow.md`);
+    } else {
+      try {
+        fs.copyFileSync(workflowSrc, workflowDest);
+        console.log(`Copied (and overwrote) file: ${path.relative(targetDir, workflowDest)}`);
+      } catch (err) {
+        console.error(`❌ Error copying rules/workflow.md to .claude:`, err.message);
+      }
     }
   }
 
