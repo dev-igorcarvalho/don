@@ -4,7 +4,7 @@
   "description": "Scaffolds .artefatti workspace structure for agentic pipeline orchestration",
   "main": "bin/cli.js",
   "bin": {
-    "don-artefatti": "./bin/cli.js"
+    "don-artefatti": "bin/cli.js"
   },
   "files": [
     "bin/",
