@@ -1,6 +1,6 @@
 # Pipeline Workflow Rules
 
-Before reading, writing, executing, or reasoning about any pipeline YAML file in this project, read `.artfactory/rules/workflow.md`
+Before reading, writing, executing, or reasoning about any pipeline YAML file in this project, read `.artefatti/rules/workflow.md`
 using the Read tool.
 
 That file is the authoritative instruction manual for the pipeline DSL used here. It defines the meaning and behavior of
@@ -13,7 +13,7 @@ every YAML tag.
 - Debugging a pipeline execution
 - Answering questions about how `pipeline`, `workflow`, `agent`, `loop`, or `depends` work
 
-## Quick Reference (from `.artfactory/rules/workflow.md`)
+## Quick Reference (from `.artefatti/rules/workflow.md`)
 
 | Tag        | Scope                 | Key behavior                                                                                          |
 |------------|-----------------------|-------------------------------------------------------------------------------------------------------|
@@ -25,15 +25,15 @@ every YAML tag.
 
 ### Variable interpolation
 
-| Expression                               | Resolves to                                                                      |
-|------------------------------------------|----------------------------------------------------------------------------------|
-| `${name}`                                | The agent's own name                                                             |
-| `${output.agentName}`                    | Text output of a completed agent in the same workflow                            |
-| `${loop.first}`                          | `true` on the first loop iteration (use in `if` blocks)                          |
-| `${loop.prev.agentName}`                 | Output of `agentName` from the previous loop iteration                           |
-| `${agentName.artifact}`                  | Artifact written by `agentName` in the same workflow                             |
-| `${workflowName.agentName.artifact}`     | Artifact written by `agentName` in a different workflow                          |
-| `${pipeline.runDir}`                     | Isolated run directory: `.artfactory/<timestamp>-<uuid>-<pipeline_name>`         |
+| Expression                               | Resolves to                                                             |
+|------------------------------------------|-------------------------------------------------------------------------|
+| `${name}`                                | The agent's own name                                                    |
+| `${output.agentName}`                    | Text output of a completed agent in the same workflow                   |
+| `${loop.first}`                          | `true` on the first loop iteration (use in `if` blocks)                 |
+| `${loop.prev.agentName}`                 | Output of `agentName` from the previous loop iteration                  |
+| `${agentName.artifact}`                  | Artifact written by `agentName` in the same workflow                    |
+| `${workflowName.agentName.artifact}`     | Artifact written by `agentName` in a different workflow                 |
+| `${pipeline.runDir}`                     | Isolated run directory: `.artefatti/<timestamp>-<uuid>-<pipeline_name>` |
 
 ### Agent fields
 
@@ -49,4 +49,4 @@ To consume another agent's artifact, reference it via `${agentName.artifact}` in
 - A failing agent stops its workflow; downstream `depends` agents are skipped.
 - A failing workflow stops downstream `depends` workflows; independent parallel workflows are unaffected.
 
-**Full semantics and examples (including the implement→verify→fix loop pattern) are in `.artfactory/rules/workflow.md` — always read that file first.**
+**Full semantics and examples (including the implement→verify→fix loop pattern) are in `.artefatti/rules/workflow.md` — always read that file first.**

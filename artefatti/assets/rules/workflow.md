@@ -36,7 +36,7 @@ A single agent that executes one task.
 Every pipeline execution creates an isolated run directory at:
 
 ```
-.artfactory/artifacts/<timestamp>-<uuid>-<pipeline_name>/
+.artefatti/artifacts/<timestamp>-<uuid>-<pipeline_name>/
 ```
 
 - Created automatically before any agent runs, once per pipeline execution.
@@ -53,7 +53,7 @@ artifact:
 
 This resolves to something like:
 ```
-.artfactory/artifacts/20260619T143012-1de9fe3d-57db-4b40-bfe5-feb1b5239d44-my-pipeline/my-file.md
+.artefatti/artifacts/20260619T143012-1de9fe3d-57db-4b40-bfe5-feb1b5239d44-my-pipeline/my-file.md
 ```
 
 ### Dependencies

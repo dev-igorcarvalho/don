@@ -7,7 +7,7 @@ Home of the agentic pipeline orchestration system. Contains the DSL spec, reusab
 ## Structure
 
 ```
-.artfactory/
+.artefatti/
 ├── workflow.md                  # DSL spec — read this before writing any pipeline
 ├── install-artifactory.sh       # Installs rules into .claude/rules/
 ├── agents/                      # Reusable agent prompt files (referenced via file://)
@@ -49,7 +49,7 @@ pipeline:
 Long or reused prompts can live in `agents/` and be referenced by path:
 
 ```yaml
-prompt: "file://.artfactory/agents/my-prompt.md"
+prompt: "file://.artefatti/agents/my-prompt.md"
 ```
 
 ### 3. Run it
@@ -61,7 +61,7 @@ Tell Claude to run the pipeline file. It will read `workflow.md` first, then orc
 Every run writes artifacts to an isolated directory:
 
 ```
-.artfactory/artifacts/<timestamp>-<uuid>-<pipeline_name>/
+.artefatti/artifacts/<timestamp>-<uuid>-<pipeline_name>/
 ```
 
 Each run gets its own directory, so past runs are never overwritten.
