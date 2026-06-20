@@ -47,7 +47,7 @@
           {
             "name": "Linter",
             "type": "command",
-            "command": ".gemini/lint.sh"
+            "command": "./.agents/lint.sh"
           }
         ]
       }
