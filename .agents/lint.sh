@@ -11,6 +11,13 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
+# Check if any .go files have changes (added, modified, deleted, staged, or unstaged)
+if ! git status --porcelain | grep -q '\.go$'; then
+    echo -e "ℹ️  No .go file changes detected. Skipping lint checks." >&2
+    echo '{"decision": "allow"}'
+    exit 0
+fi
+
 # 1. Run go format
 echo -e "🧹 ${GREEN}Running go fmt...${NC}"
 go fmt ./...
