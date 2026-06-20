@@ -10,7 +10,15 @@
     "allow": [
       "Read",
       "Write",
-      "Bash(git *)"
+      "Bash(git *)",
+      "Read(.git)",
+      "Write(.git)",
+      "Read(.git*)",
+      "Write(.git*)",
+      "Read(/home/igor/Documents/projetos/don/.git)",
+      "Write(/home/igor/Documents/projetos/don/.git)",
+      "Read(/home/igor/Documents/projetos/don/.git*)",
+      "Write(/home/igor/Documents/projetos/don/.git*)"
     ],
     "deny": [
       "Bash(rm -rf *)",
