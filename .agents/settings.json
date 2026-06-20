@@ -15,10 +15,8 @@
       "Write(.git)",
       "Read(.git*)",
       "Write(.git*)",
-      "Read(/home/igor/Documents/projetos/don/.git)",
-      "Write(/home/igor/Documents/projetos/don/.git)",
-      "Read(/home/igor/Documents/projetos/don/.git*)",
-      "Write(/home/igor/Documents/projetos/don/.git*)"
+      "Read(/home/igor/Documents/projetos/don*)",
+      "Write(/home/igor/Documents/projetos/don*)"
     ],
     "deny": [
       "Bash(rm -rf *)",

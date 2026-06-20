@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 # Stop hook script for Don monorepo to update AGENTS.md before exit.
 
 cd "$(git rev-parse --show-toplevel)" || exit 1
@@ -17,7 +18,7 @@ fi
 # 3. Export environment variable to child processes
 export AGY_STOP_HOOK_ACTIVE=true
 
-TEMP_DIFF_FILE=".agents/hooks/temp_session_diffs.md"
+TEMP_DIFF_FILE=$(mktemp .agents/hooks/temp_session_diffs_XXXXXX.md)
 
 # Ensure cleanup on script exit
 trap 'rm -f "$TEMP_DIFF_FILE"' EXIT
