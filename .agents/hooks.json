@@ -1,63 +1,24 @@
 {
   "project-lifecycle-hooks": {
-    "SessionStart": [
-      {
-        "name": "Session Start Hook",
-        "type": "command",
-        "command": "echo 'Session starting...'"
-      },
-      {
-        "name": "Session Start Hook 2",
-        "type": "command",
-        "continue": true,
-        "systemMessage" : "always greet me when you start duing anything"
-      }
-    ],
-    "Stop": [
-      {
-        "name": "Update AGENTS.md before exit",
-        "type": "command",
-        "command": "./.agents/hooks/stop-hook.sh"
-      }
-    ],
-    "BeforeAgent": [
-      {
-        "name": "Before Agent Hook",
-        "type": "command",
-        "command": "echo 'Before Agent Execution'"
-      }
-    ],
-    "AfterAgent": [
-      {
-        "matcher": "*",
-        "hooks": [
-          {
-            "name": "After Agent Hook/Linter",
-            "type": "command",
-            "command": "./.agents/lint.sh"
-          }
-        ]
-      }
-    ],
     "PreInvocation": [
       {
-        "name": "Before Model Hook",
         "type": "command",
-        "command": "echo 'Before Model Call (PreInvocation)'"
+        "command": "echo 'Before Model Call (PreInvocation)'",
+        "timeout": 0
       }
     ],
     "PostInvocation": [
       {
-        "name": "After Model Hook",
         "type": "command",
-        "command": "echo 'After Model Call (PostInvocation)'"
+        "command": "echo 'After Model Call (PostInvocation)'",
+        "timeout": 0
       }
     ],
-    "BeforeToolSelection": [
+    "Stop": [
       {
-        "name": "Before Tool Selection Hook",
         "type": "command",
-        "command": "echo 'Before Tool Selection'"
+        "command": "./.agents/hooks/stop-hook.sh",
+        "timeout": 0
       }
     ],
     "PreToolUse": [
@@ -65,9 +26,9 @@
         "matcher": "*",
         "hooks": [
           {
-            "name": "Before Tool Execution Hook (PreToolUse)",
             "type": "command",
-            "command": "echo 'Before Tool Execution'"
+            "command": "echo 'Before Tool Execution'",
+            "timeout": 0
           }
         ]
       }
@@ -77,9 +38,9 @@
         "matcher": "*",
         "hooks": [
           {
-            "name": "After Tool Execution Hook (PostToolUse)",
             "type": "command",
-            "command": "echo 'After Tool Execution'"
+            "command": "echo 'After Tool Execution'",
+            "timeout": 0
           }
         ]
       }

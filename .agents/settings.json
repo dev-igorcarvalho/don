@@ -1,63 +1,36 @@
 {
-  "allowNonWorkspaceAccess": false,
-  "altScreenMode": "default",
-  "colorScheme": "terminal",
-  "editor": "auto",
-  "enableTelemetry": true,
-  "enableTerminalSandbox": false,
-  "notifications": true,
-  "permissions": {
-    "allow": [
-      "Read",
-      "Write",
-      "Bash(git *)",
-      "Read(.git)",
-      "Write(.git)",
-      "Read(.git*)",
-      "Write(.git*)",
-      "Read(/home/igor/Documents/projetos/don*)",
-      "Write(/home/igor/Documents/projetos/don*)"
-    ],
-    "deny": [
-      "Bash(rm -rf *)",
-      "Bash(git commit *)"
-    ],
-    "ask": [
-      "Bash"
-    ]
-  },
-  "showFeedbackSurvey": true,
-  "showTips": true,
-  "statusLine": {
-    "enabled": true,
-    "showModel": true,
-    "showTokenUsage": true
-  },
-  "title": {
-    "enabled": true,
-    "prefix": "Don Igor dal Bosco"
-  },
   "toolPermission": "always-proceed",
   "trustedWorkspaces": [
     "/home/igor/Documents/projetos/don"
   ],
-  "useG1Credits": false,
-  "verbosity": "high",
-  "hooks": {
-    "BeforeAgent": [
-
+  "notifications": true,
+  "title": {
+    "enabled": true,
+    "type": "command",
+    "command": "/home/igor/Documents/projetos/don/.agents/hooks/title.sh"
+  },
+  "statusLine": {
+    "enabled": true,
+    "type": "command",
+    "command": "/home/igor/Documents/projetos/don/.agents/hooks/status-line.sh"
+  },
+  "permissions": {
+    "allow": [
+      "read_file(/home/igor/Documents/projetos/don)",
+      "write_file(/home/igor/Documents/projetos/don)",
+      "command(git)",
+      "command(go)",
+      "command(golangci-lint)",
+      "command(npm)",
+      "command(npx)",
+      "command(*)"
     ],
-    "AfterAgent": [
-      {
-        "matcher": "*",
-        "hooks": [
-          {
-            "name": "Linter",
-            "type": "command",
-            "command": "./.agents/lint.sh"
-          }
-        ]
-      }
+    "ask": [
+      "Bash(git commit *)"
+    ],
+    "deny": [
+      "Bash(rm -rf *)"
+
     ]
   }
 }
