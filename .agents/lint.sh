@@ -12,7 +12,7 @@ RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 # Check if any .go files have changes (added, modified, deleted, staged, or unstaged)
-if ! git status --porcelain | grep -q '\.go$'; then
+if ! git status --porcelain --untracked-files=all | grep -q -E '\.go"?$'; then
     echo -e "ℹ️  No .go file changes detected. Skipping lint checks." >&2
     echo '{"decision": "allow"}'
     exit 0
