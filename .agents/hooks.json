@@ -15,9 +15,9 @@
     ],
     "Stop": [
       {
-        "name": "Session End Hook",
+        "name": "Update AGENTS.md before exit",
         "type": "command",
-        "command": "echo 'Session ending...'"
+        "command": "./.agents/hooks/stop-hook.sh"
       }
     ],
     "BeforeAgent": [
