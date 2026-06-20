@@ -53,6 +53,12 @@ All Go development must abide by standard Go idioms and the active `go-standards
 *   **Hexagonal Isolation:** Ensure all business domain layers in `padrino` are kept completely pure under `internal/core`. Dependency inversion must be strictly maintained via interfaces.
 *   **Logging:** Use `log/slog` (or the wrapper in `pkg/logger`). Pass `context.Context` through all calls to preserve trace correlation.
 *   **Errors:** Use explicit error handling and wrap error chains with context (e.g., `fmt.Errorf("failed to execute agent step: %w", err)`).
+*   **consiglieri Orchestration & Primitives:**
+    *   Use `Agent[T]` for executing atomic tasks, ensuring custom target types implement `FailureChecker` (`Failure() error`) to catch semantic errors.
+    *   Coordinate multi-step tasks using `Pipeline` and `Orchestrator` components, maintaining strict sequence validation.
+    *   Propagate `context.Context` fully to retrieve the session logger using `Logger(ctx)`.
+    *   Ensure helper process test patterns (`GO_WANT_HELPER_PROCESS`) are used for command execution mock stubs.
+    *   Strictly preserve package boundaries: `pkg/` directories must have zero dependencies on any `internal/` packages.
 
 ### Node/JS Guidelines
 *   Keep the CLI (`bin/cli.js`) zero-dependency where possible, relying on standard Node APIs.
