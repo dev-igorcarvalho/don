@@ -1,6 +1,7 @@
 #!/bin/bash
 # Stop hook script for Don monorepo to update AGENTS.md before exit.
 
+cd "$(git rev-parse --show-toplevel)" || exit 1
 # 1. Prevent recursion loop
 if [ "$AGY_STOP_HOOK_ACTIVE" = "true" ]; then
   exit 0

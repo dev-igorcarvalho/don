@@ -12,22 +12,19 @@ RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 # Check if any .go files have changes (added, modified, deleted, staged, or unstaged)
-if ! git status --porcelain --untracked-files=all | grep -q -E '\.go"?([[:space:]]|$)'; then
+if ! git status --porcelain --untracked-files=all | grep -q -E '\.go"?$'; then
     echo -e "ℹ️  No .go file changes detected. Skipping lint checks." >&2
     echo '{"decision": "allow"}'
     exit 0
 fi
 
-# Initialize cumulative lint status
-LINT_STATUS=0
-
 # 1. Run go format
 echo -e "🧹 ${GREEN}Running go fmt...${NC}"
-go fmt ./... || LINT_STATUS=$((LINT_STATUS + 1))
+go fmt ./...
 
 # 2. Run go vet
 echo -e "🔍 ${GREEN}Running go vet...${NC}"
-go vet ./... || LINT_STATUS=$((LINT_STATUS + 1))
+go vet ./...
 
 # 3. Run gosec (sec)
 echo -e "🛡️  ${GREEN}Checking for gosec...${NC}"
@@ -35,7 +32,7 @@ if ! command -v gosec >/dev/null; then
     echo -e "⚠️  ${YELLOW}gosec not installed. Installing gosec...${NC}"
     go install github.com/securego/gosec/v2/cmd/gosec@latest
 fi
-gosec ./... || LINT_STATUS=$((LINT_STATUS + 1))
+gosec ./...
 
 # 4. Check if golangci-lint is installed otherwise install it
 echo -e "⚙️  ${GREEN}Checking golangci-lint...${NC}"
@@ -54,7 +51,7 @@ fi
 # 6. Run golangci-lint run --new-from-rev=HEAD ./...
 echo -e "🚦 ${GREEN}Running golangci-lint run --new-from-rev=HEAD ./...${NC}"
 golangci-lint run --new-from-rev=HEAD ./...
-LINT_STATUS=$((LINT_STATUS + $?))
+LINT_STATUS=$?
 
 # 7. Run go mod tidy
 echo -e "📦 ${GREEN}Running go mod tidy...${NC}"
