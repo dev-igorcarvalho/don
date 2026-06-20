@@ -70,7 +70,7 @@ go fmt ./...
 
 Ensure git is clean (or at least has no Go changes). Run:
 ```bash
-./.agents/lint.sh
+./bkp_agy_fdp/lint.sh
 ```
 Expected output:
 ```
@@ -92,7 +92,7 @@ touch temp_test_dummy.go
 ```
 Run:
 ```bash
-./.agents/lint.sh
+./bkp_agy_fdp/lint.sh
 ```
 Expected output:
 The script should bypass the skip condition and attempt to run formatting and linting (e.g. `🧹 Running go fmt...`).
@@ -106,6 +106,6 @@ rm temp_test_dummy.go
 Use semantic commit format to commit the implementation plan and the modified script.
 Run:
 ```bash
-git add docs/superpowers/plans/2026-06-20-go-change-detection-linter.md .agents/lint.sh
+git add docs/superpowers/plans/2026-06-20-go-change-detection-linter.md bkp_agy_fdp/lint.sh
 git commit -m "feat(linter): skip checks if no .go files changed"
 ```
