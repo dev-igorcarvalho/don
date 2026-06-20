@@ -35,5 +35,22 @@
     "/home/igor/Documents/projetos/don"
   ],
   "useG1Credits": false,
-  "verbosity": "high"
+  "verbosity": "high",
+  "hooks": {
+    "BeforeAgent": [
+
+    ],
+    "AfterAgent": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "name": "Linter",
+            "type": "command",
+            "command": ".gemini/lint.sh"
+          }
+        ]
+      }
+    ]
+  }
 }

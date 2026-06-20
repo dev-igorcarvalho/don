@@ -1,0 +1,19 @@
+{
+  "entries": [
+    {
+      "path": "./custom-skills"
+    },
+    {
+      "path": "/home/igor/Documents/projetos/shared-skills"
+    }
+  ],
+  "inherits": [
+    {
+      "path": "/home/igor/Documents/projetos/common-skills.json"
+    }
+  ],
+  "exclude": [
+    "unwanted-development-skill",
+    "legacy-tester-skill"
+  ]
+}
