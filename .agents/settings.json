@@ -1,19 +1,39 @@
 {
-  "hooks": {
-    "BeforeAgent": [
-
+  "allowNonWorkspaceAccess": false,
+  "altScreenMode": "default",
+  "colorScheme": "terminal",
+  "editor": "auto",
+  "enableTelemetry": true,
+  "enableTerminalSandbox": false,
+  "notifications": true,
+  "permissions": {
+    "allow": [
+      "Read",
+      "Write",
+      "Bash(git *)"
     ],
-    "AfterAgent": [
-      {
-        "matcher": "*",
-        "hooks": [
-          {
-            "name": "Linter",
-            "type": "command",
-            "command":".gemini/lint.sh"
-          }
-        ]
-      }
+    "deny": [
+      "Bash(rm -rf *)"
+    ],
+    "ask": [
+      "Bash"
     ]
-  }
+  },
+  "showFeedbackSurvey": true,
+  "showTips": true,
+  "statusLine": {
+    "enabled": true,
+    "showModel": true,
+    "showTokenUsage": true
+  },
+  "title": {
+    "enabled": true,
+    "prefix": "Don Igor dal Bosco"
+  },
+  "toolPermission": "always-proceed",
+  "trustedWorkspaces": [
+    "/home/igor/Documents/projetos/don"
+  ],
+  "useG1Credits": false,
+  "verbosity": "high"
 }
