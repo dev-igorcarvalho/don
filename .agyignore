@@ -1,0 +1,7 @@
+.agents/
+.git/
+node_modules/
+vendor/
+dist/
+build/
+padrino/docs

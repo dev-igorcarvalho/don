@@ -60,7 +60,7 @@ issues:
   max-issues-per-linter: 0
   max-same-issues: 0
   exclude-dirs:
-    - .agents
+    - bkp_agy_fdp
     - .idea
     - docs
     - vendor

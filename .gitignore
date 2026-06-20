@@ -48,3 +48,5 @@ vendor/
 # npm
 artefatti/.npmrc
 
+/.agents/hooks/title.log
+/.agents/hooks/statusline.log
