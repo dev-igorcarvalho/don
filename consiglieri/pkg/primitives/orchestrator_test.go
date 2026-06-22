@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -125,6 +126,38 @@ func TestOrchestrator_Run(t *testing.T) {
 		}
 		if !strings.Contains(err.Error(), "context done") {
 			t.Errorf("expected 'context done' error, got %v", err)
+		}
+	})
+
+	t.Run("session init error", func(t *testing.T) {
+		tmpDir, err := os.MkdirTemp("", "session_base_fail")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer os.RemoveAll(tmpDir)
+
+		err = os.WriteFile(filepath.Join(tmpDir, ".agentic"), []byte("blocker"), 0644)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		oldWd, err := os.Getwd()
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = os.Chdir(tmpDir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer os.Chdir(oldWd)
+
+		o := NewOrchestrator("session-err-orch", &mockWorkflow{})
+		err = o.Run(context.Background())
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		if !strings.Contains(err.Error(), "session init:") {
+			t.Errorf("expected session init error, got %v", err)
 		}
 	})
 }

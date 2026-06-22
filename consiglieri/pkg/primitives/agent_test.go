@@ -2,10 +2,13 @@ package primitives
 
 import (
 	"context"
+	"don_consiglieri/pkg/utils"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"reflect"
 	"testing"
 )
@@ -15,12 +18,53 @@ type mockProvider struct {
 	args []string
 }
 
-func (m mockProvider) ResolveProviderCmdLine() (string, []string) {
-	return m.cmd, m.args
+func (m mockProvider) ResolveProviderCmdLine(prompt string) (string, []string) {
+	return m.cmd, append(m.args, prompt)
+}
+
+func (m mockProvider) Parse(out []byte, target any) error {
+	if err := json.Unmarshal(out, target); err == nil {
+		return nil
+	}
+	switch t := target.(type) {
+	case *string:
+		*t = string(out)
+		return nil
+	case *any:
+		*t = string(out)
+		return nil
+	case *testStringResult:
+		*t = testStringResult(out)
+		return nil
+	case *testAnyResult:
+		t.Val = string(out)
+		return nil
+	default:
+		return json.Unmarshal(out, target)
+	}
 }
 
 type testResult struct {
 	Status string `json:"status"`
+}
+
+func (r testResult) Result() string {
+	return r.Status
+}
+
+func (r testResult) PersistArtifact(ctx context.Context, artifactName string) (string, error) {
+	dir, ok := ctx.Value(artifactDirKey{}).(string)
+	if !ok || dir == "" {
+		return "", nil
+	}
+	if dir == "/nonexistent-dir-for-test" {
+		return "", errors.New("persist error")
+	}
+	path := filepath.Join(dir, "test_agent_123.md")
+	if err := os.WriteFile(path, []byte(r.Result()), 0644); err != nil {
+		return "", err
+	}
+	return path, nil
 }
 
 type testResultWithFailure struct {
@@ -28,11 +72,41 @@ type testResultWithFailure struct {
 	Err    string `json:"error,omitempty"`
 }
 
-func (t *testResultWithFailure) Failure() error {
+func (t testResultWithFailure) Failure() error {
 	if t.Err != "" {
 		return errors.New(t.Err)
 	}
 	return nil
+}
+
+func (t testResultWithFailure) Result() string {
+	return t.Status
+}
+
+func (t testResultWithFailure) PersistArtifact(ctx context.Context, artifactName string) (string, error) {
+	return "", nil
+}
+
+type testStringResult string
+
+func (r testStringResult) Result() string {
+	return string(r)
+}
+
+func (r testStringResult) PersistArtifact(ctx context.Context, artifactName string) (string, error) {
+	return "", nil
+}
+
+type testAnyResult struct {
+	Val any
+}
+
+func (r testAnyResult) Result() string {
+	return fmt.Sprintf("%v", r.Val)
+}
+
+func (r testAnyResult) PersistArtifact(ctx context.Context, artifactName string) (string, error) {
+	return "", nil
 }
 
 func TestHelperProcess(t *testing.T) {
@@ -70,13 +144,13 @@ func mockExec(output string, exitCode int) func(ctx context.Context, name string
 func TestAgent_isValid(t *testing.T) {
 	tests := []struct {
 		name    string
-		agent   Agent[any]
+		agent   Agent[FoundationModelResponse]
 		wantErr bool
 		errMsg  string
 	}{
 		{
 			name: "missing provider",
-			agent: Agent[any]{
+			agent: Agent[FoundationModelResponse]{
 				Name:   "test",
 				Model:  "model",
 				Prompt: "prompt",
@@ -86,7 +160,7 @@ func TestAgent_isValid(t *testing.T) {
 		},
 		{
 			name: "missing name",
-			agent: Agent[any]{
+			agent: Agent[FoundationModelResponse]{
 				Provider: ClaudeProvider{},
 				Model:    "model",
 				Prompt:   "prompt",
@@ -96,7 +170,7 @@ func TestAgent_isValid(t *testing.T) {
 		},
 		{
 			name: "missing model",
-			agent: Agent[any]{
+			agent: Agent[FoundationModelResponse]{
 				Provider: ClaudeProvider{},
 				Name:     "test",
 				Prompt:   "prompt",
@@ -106,7 +180,7 @@ func TestAgent_isValid(t *testing.T) {
 		},
 		{
 			name: "missing prompt",
-			agent: Agent[any]{
+			agent: Agent[FoundationModelResponse]{
 				Provider: ClaudeProvider{},
 				Name:     "test",
 				Model:    "model",
@@ -116,7 +190,7 @@ func TestAgent_isValid(t *testing.T) {
 		},
 		{
 			name: "valid agent",
-			agent: Agent[any]{
+			agent: Agent[FoundationModelResponse]{
 				Provider: ClaudeProvider{},
 				Name:     "test",
 				Model:    "model",
@@ -162,12 +236,12 @@ func TestAgent_resolvePrompt(t *testing.T) {
 		{
 			name:   "plain prompt",
 			prompt: "direct prompt",
-			want:   "direct prompt",
+			want:   fmt.Sprintf("%s \n %s", AgentResponseFormatEnforcerXml, "direct prompt"),
 		},
 		{
 			name:   "file prompt",
 			prompt: tmpFile.Name(),
-			want:   content,
+			want:   fmt.Sprintf("%s \n %s", AgentResponseFormatEnforcerXml, content),
 		},
 		{
 			name:    "missing file prompt",
@@ -178,7 +252,7 @@ func TestAgent_resolvePrompt(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			a := &Agent[any]{Prompt: tt.prompt}
+			a := &Agent[FoundationModelResponse]{Prompt: tt.prompt}
 			got, err := a.resolvePrompt()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("resolvePrompt() error = %v, wantErr %v", err, tt.wantErr)
@@ -219,12 +293,25 @@ func TestAgent_parseResult(t *testing.T) {
 			want:    &testResultWithFailure{Status: "error", Err: "something went wrong"},
 			wantErr: true,
 		},
+		{
+			name: "fallback string",
+			out:  []byte(`raw string output`),
+			want: testStringResult("raw string output"),
+		},
+		{
+			name: "fallback any",
+			out:  []byte(`raw any output`),
+			want: &testAnyResult{Val: "raw any output"},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			if tt.want == nil {
+				return
+			}
 			if reflect.TypeOf(tt.want) == reflect.TypeOf(&testResult{}) {
-				a := &Agent[testResult]{Name: "test"}
+				a := &Agent[testResult]{Name: "test", Provider: mockProvider{}}
 				got, err := a.parseResult(tt.out)
 				if (err != nil) != tt.wantErr {
 					t.Errorf("parseResult() error = %v, wantErr %v", err, tt.wantErr)
@@ -234,7 +321,27 @@ func TestAgent_parseResult(t *testing.T) {
 					t.Errorf("parseResult() got = %+v, want %+v", got, tt.want)
 				}
 			} else if reflect.TypeOf(tt.want) == reflect.TypeOf(&testResultWithFailure{}) {
-				a := &Agent[testResultWithFailure]{Name: "test"}
+				a := &Agent[testResultWithFailure]{Name: "test", Provider: mockProvider{}}
+				got, err := a.parseResult(tt.out)
+				if (err != nil) != tt.wantErr {
+					t.Errorf("parseResult() error = %v, wantErr %v", err, tt.wantErr)
+					return
+				}
+				if !tt.wantErr && !reflect.DeepEqual(got, tt.want) {
+					t.Errorf("parseResult() got = %+v, want %+v", got, tt.want)
+				}
+			} else if reflect.TypeOf(tt.want) == reflect.TypeOf(testStringResult("")) {
+				a := &Agent[testStringResult]{Name: "test", Provider: mockProvider{}}
+				got, err := a.parseResult(tt.out)
+				if (err != nil) != tt.wantErr {
+					t.Errorf("parseResult() error = %v, wantErr %v", err, tt.wantErr)
+					return
+				}
+				if !tt.wantErr && *got != tt.want.(testStringResult) {
+					t.Errorf("parseResult() got = %v, want %v", *got, tt.want)
+				}
+			} else if reflect.TypeOf(tt.want) == reflect.TypeOf(&testAnyResult{}) {
+				a := &Agent[testAnyResult]{Name: "test", Provider: mockProvider{}}
 				got, err := a.parseResult(tt.out)
 				if (err != nil) != tt.wantErr {
 					t.Errorf("parseResult() error = %v, wantErr %v", err, tt.wantErr)
@@ -254,7 +361,7 @@ func TestAgent_execute(t *testing.T) {
 
 	tests := []struct {
 		name         string
-		agent        *Agent[any]
+		agent        *Agent[FoundationModelResponse]
 		expectedArgs []string
 		output       string
 		exitCode     int
@@ -262,21 +369,21 @@ func TestAgent_execute(t *testing.T) {
 	}{
 		{
 			name: "success with model and system",
-			agent: &Agent[any]{
+			agent: &Agent[FoundationModelResponse]{
 				Name:     "test",
 				Provider: mockProvider{cmd: "test-cmd", args: []string{"base1"}},
 				Model:    "gpt-4",
 				System:   "you are a bot",
 				Prompt:   "hello",
 			},
-			expectedArgs: []string{"base1", "--model", "gpt-4", "--system-prompt", "you are a bot", "hello"},
+			expectedArgs: []string{"base1", fmt.Sprintf("%s \n %s", AgentResponseFormatEnforcerXml, "hello"), "--model", "gpt-4", "--system-prompt", "you are a bot"},
 			output:       "success output",
 			exitCode:     0,
 			wantErr:      false,
 		},
 		{
 			name: "exit error",
-			agent: &Agent[any]{
+			agent: &Agent[FoundationModelResponse]{
 				Name:     "test",
 				Provider: mockProvider{cmd: "test-cmd", args: []string{}},
 				Prompt:   "prompt",
@@ -285,13 +392,34 @@ func TestAgent_execute(t *testing.T) {
 			exitCode: 1,
 			wantErr:  true,
 		},
+		{
+			name: "non exit error (binary not found)",
+			agent: &Agent[FoundationModelResponse]{
+				Name:     "test",
+				Provider: mockProvider{cmd: "nonexistentbinaryhere", args: []string{}},
+				Prompt:   "prompt",
+			},
+			wantErr: true,
+		},
+		{
+			name: "resolve prompt error",
+			agent: &Agent[FoundationModelResponse]{
+				Name:     "test",
+				Provider: mockProvider{cmd: "test-cmd", args: []string{}},
+				Prompt:   "nonexistent.md",
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			execCommandContext = func(ctx context.Context, name string, arg ...string) *exec.Cmd {
+				if tt.name == "non exit error (binary not found)" {
+					return exec.CommandContext(ctx, "nonexistentbinaryhere")
+				}
 				if tt.expectedArgs != nil {
-					providerCmd, _ := tt.agent.Provider.ResolveProviderCmdLine()
+					providerCmd, _ := tt.agent.Provider.ResolveProviderCmdLine(tt.agent.Prompt)
 					if name != providerCmd {
 						t.Errorf("execute() name = %v, want %v", name, providerCmd)
 					}
@@ -349,6 +477,15 @@ func TestAgent_Run(t *testing.T) {
 			wantErr:  false,
 		},
 		{
+			name: "validation error (missing prompt)",
+			agent: Agent[testResult]{
+				Name:     "test",
+				Provider: mockProvider{cmd: "test"},
+				Model:    "model",
+			},
+			wantErr: true,
+		},
+		{
 			name: "before error",
 			agent: Agent[testResult]{
 				Name:     "test",
@@ -361,6 +498,57 @@ func TestAgent_Run(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name: "execute error",
+			agent: Agent[testResult]{
+				Name:     "test",
+				Provider: mockProvider{cmd: "test"},
+				Model:    "model",
+				Prompt:   "prompt",
+			},
+			output:   `failed execute`,
+			exitCode: 1,
+			wantErr:  true,
+		},
+		{
+			name: "persist error",
+			agent: Agent[testResult]{
+				Name:     "test",
+				Provider: mockProvider{cmd: "test"},
+				Model:    "model",
+				Prompt:   "prompt",
+			},
+			output:   `{"status": "ok"}`,
+			exitCode: 0,
+			wantErr:  true,
+		},
+		{
+			name: "after error",
+			agent: Agent[testResult]{
+				Name:     "test",
+				Provider: mockProvider{cmd: "test"},
+				Model:    "model",
+				Prompt:   "prompt",
+				After: func(ctx context.Context) error {
+					return errors.New("after failed")
+				},
+			},
+			output:   `{"status": "ok"}`,
+			exitCode: 0,
+			wantErr:  true,
+		},
+		{
+			name: "parse error",
+			agent: Agent[testResult]{
+				Name:     "test",
+				Provider: mockProvider{cmd: "test"},
+				Model:    "model",
+				Prompt:   "prompt",
+			},
+			output:   `malformed json`,
+			exitCode: 0,
+			wantErr:  true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -369,14 +557,20 @@ func TestAgent_Run(t *testing.T) {
 			afterCalled = false
 			execCommandContext = mockExec(tt.output, tt.exitCode)
 
-			got, err := tt.agent.Run(context.Background())
+			ctx := context.Background()
+			if tt.name == "persist error" {
+				ctx = context.WithValue(ctx, artifactDirKey{}, "/nonexistent-dir-for-test")
+			}
+
+			got, err := tt.agent.Run(ctx)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Run() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !tt.wantErr {
-				if got.Status != "ok" {
-					t.Errorf("Run() got status = %v, want ok", got.Status)
+				testRes, ok := got.ModelResponse.(testResult)
+				if !ok || testRes.Status != "ok" {
+					t.Errorf("Run() got ModelResponse = %v, want testResult with status ok", got.ModelResponse)
 				}
 				if !beforeCalled {
 					t.Error("before hook was not called")
@@ -384,6 +578,85 @@ func TestAgent_Run(t *testing.T) {
 				if !afterCalled {
 					t.Error("after hook was not called")
 				}
+			}
+		})
+	}
+}
+
+func TestAgent_Run_Persist(t *testing.T) {
+	origExec := execCommandContext
+	defer func() { execCommandContext = origExec }()
+
+	tmpDir, err := os.MkdirTemp("", "agent_persist_test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	execCommandContext = mockExec(`{"status": "ok"}`, 0)
+
+	a := Agent[testResult]{
+		Name:     "Test Agent 123",
+		Provider: mockProvider{cmd: "test"},
+		Model:    "model",
+		Prompt:   "prompt",
+	}
+
+	ctx := context.WithValue(context.Background(), artifactDirKey{}, tmpDir)
+	_, err = a.Run(ctx)
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+
+	expectedPath := filepath.Join(tmpDir, "test_agent_123.md")
+	data, err := os.ReadFile(expectedPath)
+	if err != nil {
+		t.Fatalf("failed to read persisted file: %v", err)
+	}
+
+	if string(data) != `ok` {
+		t.Errorf("persisted data got = %s, want %s", string(data), `ok`)
+	}
+}
+
+func TestSanitizeFilename(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "plain name",
+			input:    "simpleName",
+			expected: "simplename",
+		},
+		{
+			name:     "spaces and hyphens",
+			input:    "My - Agent - 123",
+			expected: "my_agent_123",
+		},
+		{
+			name:     "consecutive delimiters",
+			input:    "///some--name\\\\   with spaces",
+			expected: "some_name_with_spaces",
+		},
+		{
+			name:     "leading and trailing",
+			input:    "  -foo-bar-  ",
+			expected: "foo_bar",
+		},
+		{
+			name:     "complex pattern",
+			input:    "agent/test\\run-1",
+			expected: "agent_test_run_1",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := utils.SanitizeName(tt.input)
+			if got != tt.expected {
+				t.Errorf("SanitizeName(%q) got %q, want %q", tt.input, got, tt.expected)
 			}
 		})
 	}

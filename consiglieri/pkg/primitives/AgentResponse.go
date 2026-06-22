@@ -1,6 +1,45 @@
 package primitives
 
-import "errors"
+import (
+	"context"
+	"don_consiglieri/pkg/utils"
+	"encoding/xml"
+	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
+)
+
+type AgentResponse struct {
+	ModelResponse FoundationModelResult
+	ArtifactPath  string
+}
+type FoundationModelResponse struct {
+	XMLName          xml.Name `xml:"model_response" json:"-"`
+	ReasoningProcess string   `xml:"reasoning_process" json:"reasoning_process"`
+	Response         string   `xml:"result" json:"result"`
+}
+
+func (r FoundationModelResponse) Failure() error {
+	return nil
+}
+func (r FoundationModelResponse) Result() string {
+	return r.Response
+}
+
+func (r FoundationModelResponse) PersistArtifact(ctx context.Context, artifactName string) (string, error) {
+	dir, ok := ctx.Value(artifactDirKey{}).(string)
+	if !ok || dir == "" {
+		return "", nil
+	}
+	filename := fmt.Sprintf("%s.md", utils.SanitizeName(artifactName))
+	path := filepath.Join(dir, filename)
+	Logger(ctx).Info("persisting agent artifact", "name", artifactName, "path", path)
+	if err := os.WriteFile(path, []byte(r.Result()), 0o644); err != nil {
+		return "", fmt.Errorf("persist agent artifact: %w", err)
+	}
+	return path, nil
+}
 
 type ClaudeResult struct {
 	Type            string      `json:"type"`

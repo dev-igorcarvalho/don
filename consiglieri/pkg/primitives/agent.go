@@ -2,7 +2,6 @@ package primitives
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -13,7 +12,8 @@ import (
 var execCommandContext = exec.CommandContext
 
 type AgentProvider interface {
-	ResolveProviderCmdLine() (string, []string)
+	ResolveProviderCmdLine(prompt string) (string, []string)
+	Parse(out []byte, target any) error
 }
 
 // FailureChecker is an interface that result types can implement to indicate
@@ -22,9 +22,14 @@ type FailureChecker interface {
 	Failure() error
 }
 
+type FoundationModelResult interface {
+	Result() string
+	PersistArtifact(ctx context.Context, artifactName string) (string, error)
+}
+
 // Agent is a reusable unit that runs prompts via the Claude Code CLI.
 // Setting Workdir controls which CLAUDE.md is loaded automatically.
-type Agent[T any] struct {
+type Agent[T FoundationModelResult] struct {
 	Name        string
 	Provider    AgentProvider
 	Description string
@@ -52,7 +57,8 @@ func (a *Agent[T]) isValid() error {
 }
 
 // Run executes the agent lifecycle: validate, before hook, execute, after hook, parse.
-func (a *Agent[T]) Run(ctx context.Context) (*T, error) {
+func (a *Agent[T]) Run(ctx context.Context) (*AgentResponse, error) {
+	var err error
 	if err := a.isValid(); err != nil {
 		return nil, err
 	}
@@ -74,8 +80,13 @@ func (a *Agent[T]) Run(ctx context.Context) (*T, error) {
 		log.Error("agent failed", "name", a.Name, "error", err)
 		return nil, err
 	}
+	path, err := a.persist(ctx, *result)
+	if err != nil {
+		log.Error("failed to persist agent output", "name", a.Name, "error", err)
+		return nil, err
+	}
 	log.Info("agent done", "name", a.Name)
-	return result, nil
+	return &AgentResponse{ArtifactPath: path, ModelResponse: *result}, nil
 }
 
 func (a *Agent[T]) runBefore(ctx context.Context) error {
@@ -103,10 +114,8 @@ func (a *Agent[T]) execute(ctx context.Context) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	agenticProvider, providerArgs := a.Provider.ResolveProviderCmdLine()
-	args := append(a.resolveArgs(providerArgs), prompt)
-	Logger(ctx).Info("agent executing", "name", a.Name)
-	out, err := execCommandContext(ctx, agenticProvider, args...).Output()
+	agenticProvider, providerArgs := a.Provider.ResolveProviderCmdLine(prompt)
+	out, err := execCommandContext(ctx, agenticProvider, a.resolveArgs(providerArgs)...).Output()
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			return nil, fmt.Errorf("%s: %s exited %d: %s", a.Name, agenticProvider, exitErr.ExitCode(), string(exitErr.Stderr))
@@ -118,7 +127,7 @@ func (a *Agent[T]) execute(ctx context.Context) ([]byte, error) {
 
 func (a *Agent[T]) parseResult(out []byte) (*T, error) {
 	var r T
-	if err := json.Unmarshal(out, &r); err != nil {
+	if err := a.Provider.Parse(out, &r); err != nil {
 		return nil, fmt.Errorf("%s: parse: %w\nraw output: %s", a.Name, err, string(out))
 	}
 
@@ -128,20 +137,20 @@ func (a *Agent[T]) parseResult(out []byte) (*T, error) {
 			return nil, fmt.Errorf("%s: %w", a.Name, err)
 		}
 	}
-
 	return &r, nil
 }
 
 // resolvePrompt returns Agent.Prompt, or the file contents if Prompt ends in .md.
 func (a *Agent[T]) resolvePrompt() (string, error) {
 	if !strings.HasSuffix(a.Prompt, ".md") {
-		return a.Prompt, nil
+		return fmt.Sprintf("%s \n %s", AgentResponseFormatEnforcerXml, a.Prompt), nil
 	}
 	data, err := os.ReadFile(a.Prompt)
 	if err != nil {
 		return "", fmt.Errorf("prompt file %q: %w", a.Prompt, err)
 	}
-	return string(data), nil
+	res := string(data)
+	return fmt.Sprintf("%s \n %s", AgentResponseFormatEnforcerXml, res), nil
 }
 
 func (a *Agent[T]) resolveArgs(baseArgs []string) []string {
@@ -153,4 +162,12 @@ func (a *Agent[T]) resolveArgs(baseArgs []string) []string {
 		args = append(args, "--system-prompt", a.System)
 	}
 	return args
+}
+
+func (a *Agent[T]) persist(ctx context.Context, out T) (string, error) {
+	path, err := out.PersistArtifact(ctx, a.Name)
+	if err != nil {
+		return "", err
+	}
+	return path, nil
 }

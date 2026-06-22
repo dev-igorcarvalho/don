@@ -53,10 +53,18 @@ func TestPipeline_Run(t *testing.T) {
 	})
 
 	t.Run("InvalidPipeline", func(t *testing.T) {
-		p := &Pipeline{}
-		err := p.Run(context.Background())
-		if err == nil {
-			t.Error("expected error for invalid pipeline, got nil")
+		// Empty name
+		p1 := &Pipeline{fn: func(ctx context.Context) error { return nil }}
+		err := p1.Run(context.Background())
+		if err == nil || err.Error() != "pipeline name is required" {
+			t.Errorf("expected 'pipeline name is required' error, got %v", err)
+		}
+
+		// Nil fn
+		p2 := &Pipeline{Name: "test-pipeline"}
+		err = p2.Run(context.Background())
+		if err == nil || err.Error() != "pipeline fn is required" {
+			t.Errorf("expected 'pipeline fn is required' error, got %v", err)
 		}
 	})
 
@@ -149,6 +157,20 @@ func TestPipeline_Run(t *testing.T) {
 		// Should prioritize fnErr
 		if !errors.Is(err, fnErr) && err.Error() != "test: fn error" {
 			t.Errorf("expected fn error, got %v", err)
+		}
+	})
+
+	t.Run("SuccessWithNilAfter", func(t *testing.T) {
+		p := &Pipeline{
+			Name: "test-nil-after",
+			fn: func(ctx context.Context) error {
+				return nil
+			},
+		}
+
+		err := p.Run(context.Background())
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
 		}
 	})
 }
