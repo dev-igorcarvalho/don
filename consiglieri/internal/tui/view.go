@@ -46,11 +46,13 @@ func (m MainModel) View() string {
 		)
 	case selectedItem != nil:
 		item := selectedItem.(WorkflowItem)
-		rightTitle = "DETAILS: " + item.name
+		rightTitle = "WORKFLOW DETAILS:"
 
 		rightView = lipgloss.JoinVertical(
 			lipgloss.Left,
 			TitleStyle.Render(rightTitle),
+			"",
+			MutedTextStyle.Render("Name: ")+item.name,
 			"",
 			MutedTextStyle.Render("Path: ")+item.filePath,
 			"",

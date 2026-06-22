@@ -1,3 +1,4 @@
+// description: simple pipeline that does hello world
 package main
 
 import (

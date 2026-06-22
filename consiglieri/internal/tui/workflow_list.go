@@ -39,6 +39,7 @@ func DiscoverWorkflows(dir string) ([]list.Item, error) {
 
 		fullPath := filepath.Join(dir, file.Name())
 		name := strings.TrimSuffix(file.Name(), ".go")
+		name = strings.ReplaceAll(name, " ", "_")
 		description := "No description provided."
 
 		f, err := os.Open(fullPath)
