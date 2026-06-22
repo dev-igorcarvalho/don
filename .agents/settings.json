@@ -1,7 +1,8 @@
 {
   "toolPermission": "always-proceed",
   "trustedWorkspaces": [
-    "/home/igor/Documents/projetos/don"
+    "/home/igor/Documents/projetos/don",
+    "/home/igor/.gemini/skills"
   ],
   "notifications": true,
   "title": {
@@ -30,7 +31,6 @@
     ],
     "deny": [
       "Bash(rm -rf *)"
-
     ]
   }
 }
