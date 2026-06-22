@@ -6,10 +6,10 @@ import (
 )
 
 var underscoreRegex = regexp.MustCompile(`_+`)
+var nameReplacer = strings.NewReplacer("/", "_", "\\", "_", " ", "_", "-", "_")
 
 func SanitizeName(name string) string {
-	r := strings.NewReplacer("/", "_", "\\", "_", " ", "_", "-", "_")
-	replaced := r.Replace(name)
-	collapsed := underscoreRegex.ReplaceAllString(replaced, "_")
-	return strings.ToLower(strings.Trim(collapsed, "_"))
+	replacedDelimiters := nameReplacer.Replace(name)
+	collapsedUnderscores := underscoreRegex.ReplaceAllString(replacedDelimiters, "_")
+	return strings.ToLower(strings.Trim(collapsedUnderscores, "_"))
 }
