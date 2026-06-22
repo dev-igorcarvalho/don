@@ -28,7 +28,7 @@ func (r FoundationModelResponse) Result() string {
 }
 
 func (r FoundationModelResponse) PersistArtifact(ctx context.Context, artifactName string) (string, error) {
-	dir, ok := ctx.Value(artifactDirKey{}).(string)
+	dir, ok := ArtifactDir(ctx)
 	if !ok || dir == "" {
 		return "", nil
 	}
@@ -92,7 +92,7 @@ type ClaudeResult struct {
 	Uuid              string        `json:"uuid"`
 }
 
-// TODO repensar sobre isso
+// TODO made for claude. maybe we need to remove it after some tests at claude
 func (r *ClaudeResult) Failure() error {
 	if r == nil {
 		return nil

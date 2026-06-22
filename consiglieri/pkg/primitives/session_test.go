@@ -23,6 +23,9 @@ func TestSessionGetters(t *testing.T) {
 	if _, ok := SessionID(ctx); ok {
 		t.Error("expected SessionID to return false for empty context")
 	}
+	if _, ok := ArtifactDir(ctx); ok {
+		t.Error("expected ArtifactDir to return false for empty context")
+	}
 	if logger := Logger(ctx); logger != slog.Default() {
 		t.Error("expected Logger to return slog.Default() for empty context")
 	}
@@ -31,11 +34,13 @@ func TestSessionGetters(t *testing.T) {
 	testDir := "/tmp/session"
 	testName := "test-orchestrator"
 	testID := "2023-01-01-uuid-test-orchestrator"
+	testArtifactDir := "/tmp/session/artifacts"
 	testLogger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
 	ctx = context.WithValue(ctx, sessionDirKey{}, testDir)
 	ctx = context.WithValue(ctx, sessionNameKey{}, testName)
 	ctx = context.WithValue(ctx, sessionIDKey{}, testID)
+	ctx = context.WithValue(ctx, artifactDirKey{}, testArtifactDir)
 	ctx = context.WithValue(ctx, loggerKey{}, testLogger)
 
 	if dir, ok := SessionDir(ctx); !ok || dir != testDir {
@@ -46,6 +51,9 @@ func TestSessionGetters(t *testing.T) {
 	}
 	if id, ok := SessionID(ctx); !ok || id != testID {
 		t.Errorf("expected SessionID to return %s, got %s", testID, id)
+	}
+	if dir, ok := ArtifactDir(ctx); !ok || dir != testArtifactDir {
+		t.Errorf("expected ArtifactDir to return %s, got %s", testArtifactDir, dir)
 	}
 	if logger := Logger(ctx); logger != testLogger {
 		t.Error("expected Logger to return the injected logger")
@@ -189,7 +197,9 @@ func TestInitSession_Errors(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer os.Chdir(oldWd)
+		defer func() {
+			_ = os.Chdir(oldWd)
+		}()
 
 		orch := &Orchestrator{Name: "test-orch"}
 		_, _, err = orch.initSession(context.Background())
@@ -233,7 +243,9 @@ func TestInitSession_Errors(t *testing.T) {
 		}
 		// Delete the current working directory to trigger getwd error
 		os.RemoveAll(tmpDir)
-		defer os.Chdir(oldWd)
+		defer func() {
+			_ = os.Chdir(oldWd)
+		}()
 
 		orch := &Orchestrator{Name: "test-orch"}
 		_, _, err = orch.initSession(context.Background())
@@ -281,7 +293,9 @@ func TestInitSession_Errors(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer os.Chdir(oldWd)
+		defer func() {
+			_ = os.Chdir(oldWd)
+		}()
 
 		orch := &Orchestrator{Name: "test-orch"}
 		_, _, err = orch.initSession(context.Background())
@@ -303,7 +317,9 @@ func TestInitSession_Errors(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer os.Chdir(oldWd)
+		defer func() {
+			_ = os.Chdir(oldWd)
+		}()
 
 		orch := &Orchestrator{Name: "test-orch"}
 		_, _, err = orch.initSession(context.Background())
@@ -325,7 +341,9 @@ func TestInitSession_Errors(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer os.Chdir(oldWd)
+		defer func() {
+			_ = os.Chdir(oldWd)
+		}()
 
 		orch := &Orchestrator{Name: "test-orch"}
 		_, f, err := orch.initSession(context.Background())

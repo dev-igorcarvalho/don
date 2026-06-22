@@ -53,7 +53,7 @@ func (r testResult) Result() string {
 }
 
 func (r testResult) PersistArtifact(ctx context.Context, artifactName string) (string, error) {
-	dir, ok := ctx.Value(artifactDirKey{}).(string)
+	dir, ok := ArtifactDir(ctx)
 	if !ok || dir == "" {
 		return "", nil
 	}
@@ -310,7 +310,8 @@ func TestAgent_parseResult(t *testing.T) {
 			if tt.want == nil {
 				return
 			}
-			if reflect.TypeOf(tt.want) == reflect.TypeOf(&testResult{}) {
+			switch reflect.TypeOf(tt.want) {
+			case reflect.TypeOf(&testResult{}):
 				a := &Agent[testResult]{Name: "test", Provider: mockProvider{}}
 				got, err := a.parseResult(tt.out)
 				if (err != nil) != tt.wantErr {
@@ -320,7 +321,7 @@ func TestAgent_parseResult(t *testing.T) {
 				if !tt.wantErr && !reflect.DeepEqual(got, tt.want) {
 					t.Errorf("parseResult() got = %+v, want %+v", got, tt.want)
 				}
-			} else if reflect.TypeOf(tt.want) == reflect.TypeOf(&testResultWithFailure{}) {
+			case reflect.TypeOf(&testResultWithFailure{}):
 				a := &Agent[testResultWithFailure]{Name: "test", Provider: mockProvider{}}
 				got, err := a.parseResult(tt.out)
 				if (err != nil) != tt.wantErr {
@@ -330,7 +331,7 @@ func TestAgent_parseResult(t *testing.T) {
 				if !tt.wantErr && !reflect.DeepEqual(got, tt.want) {
 					t.Errorf("parseResult() got = %+v, want %+v", got, tt.want)
 				}
-			} else if reflect.TypeOf(tt.want) == reflect.TypeOf(testStringResult("")) {
+			case reflect.TypeOf(testStringResult("")):
 				a := &Agent[testStringResult]{Name: "test", Provider: mockProvider{}}
 				got, err := a.parseResult(tt.out)
 				if (err != nil) != tt.wantErr {
@@ -340,7 +341,7 @@ func TestAgent_parseResult(t *testing.T) {
 				if !tt.wantErr && *got != tt.want.(testStringResult) {
 					t.Errorf("parseResult() got = %v, want %v", *got, tt.want)
 				}
-			} else if reflect.TypeOf(tt.want) == reflect.TypeOf(&testAnyResult{}) {
+			case reflect.TypeOf(&testAnyResult{}):
 				a := &Agent[testAnyResult]{Name: "test", Provider: mockProvider{}}
 				got, err := a.parseResult(tt.out)
 				if (err != nil) != tt.wantErr {

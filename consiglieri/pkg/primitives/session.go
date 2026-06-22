@@ -44,35 +44,19 @@ func Logger(ctx context.Context) *slog.Logger {
 	return slog.Default()
 }
 
+// ArtifactDir returns the artifact directory path from ctx.
+func ArtifactDir(ctx context.Context) (string, bool) {
+	v, ok := ctx.Value(artifactDirKey{}).(string)
+	return v, ok
+}
+
 // initSession creates .agentic/session/<date>-<uuid>-<name>, builds a tee logger
 // (stdout + run.log), and injects session dir, name, ID, and logger into the context.
 // The caller is responsible for closing the returned log file.
 func (o *Orchestrator) initSession(ctx context.Context) (context.Context, *os.File, error) {
-	pwd, err := os.Getwd()
+	sessionDir, artifactsDir, logsDir, sessionID, err := ensureSessionDirs(o.Name)
 	if err != nil {
-		return ctx, nil, fmt.Errorf("getwd: %w", err)
-	}
-
-	sessionBase := filepath.Join(pwd, ".agentic", "session")
-	if err := os.MkdirAll(sessionBase, 0o755); err != nil {
-		return ctx, nil, fmt.Errorf("create session base: %w", err)
-	}
-
-	sessionID := fmt.Sprintf("%s-%s", newUUID(), utils.SanitizeName(o.Name))
-	sessionDir := filepath.Join(sessionBase, sessionID)
-
-	if err := os.Mkdir(sessionDir, 0o755); err != nil {
-		return ctx, nil, fmt.Errorf("create session dir: %w", err)
-	}
-
-	logsDir := filepath.Join(sessionDir, "logs")
-	if err := os.Mkdir(logsDir, 0o755); err != nil {
-		return ctx, nil, fmt.Errorf("create logs dir: %w", err)
-	}
-
-	artifactsDir := filepath.Join(sessionDir, "artifacts")
-	if err := os.Mkdir(artifactsDir, 0o755); err != nil {
-		return ctx, nil, fmt.Errorf("create artifact dir: %w", err)
+		return ctx, nil, err
 	}
 
 	logFile, err := os.Create(filepath.Join(logsDir, "run.log"))
@@ -89,6 +73,38 @@ func (o *Orchestrator) initSession(ctx context.Context) (context.Context, *os.Fi
 	ctx = context.WithValue(ctx, sessionIDKey{}, sessionID)
 	ctx = context.WithValue(ctx, loggerKey{}, logger)
 	return ctx, logFile, nil
+}
+
+// ensureSessionDirs handles directory creation and validation for the session.
+func ensureSessionDirs(sessionName string) (sessionDir, artifactsDir, logsDir, sessionID string, err error) {
+	pwd, err := os.Getwd()
+	if err != nil {
+		return "", "", "", "", fmt.Errorf("getwd: %w", err)
+	}
+
+	sessionBase := filepath.Join(pwd, ".agentic", "session")
+	if err := os.MkdirAll(sessionBase, 0o755); err != nil {
+		return "", "", "", "", fmt.Errorf("create session base: %w", err)
+	}
+
+	sessionID = fmt.Sprintf("%s-%s", newUUID(), utils.SanitizeName(sessionName))
+	sessionDir = filepath.Join(sessionBase, sessionID)
+
+	if err := os.Mkdir(sessionDir, 0o755); err != nil {
+		return "", "", "", "", fmt.Errorf("create session dir: %w", err)
+	}
+
+	logsDir = filepath.Join(sessionDir, "logs")
+	if err := os.Mkdir(logsDir, 0o755); err != nil {
+		return "", "", "", "", fmt.Errorf("create logs dir: %w", err)
+	}
+
+	artifactsDir = filepath.Join(sessionDir, "artifacts")
+	if err := os.Mkdir(artifactsDir, 0o755); err != nil {
+		return "", "", "", "", fmt.Errorf("create artifact dir: %w", err)
+	}
+
+	return sessionDir, artifactsDir, logsDir, sessionID, nil
 }
 
 // newUUID returns a random unique ID string based on timestamp and crypto/rand bytes.
