@@ -3,6 +3,7 @@ package primitives
 import (
 	"context"
 	"crypto/rand"
+	"don_consiglieri/pkg/utils"
 	"fmt"
 	"io"
 	"log/slog"
@@ -12,6 +13,7 @@ import (
 )
 
 type sessionDirKey struct{}
+type artifactDirKey struct{}
 type sessionNameKey struct{}
 type sessionIDKey struct{}
 type loggerKey struct{}
@@ -56,7 +58,7 @@ func (o *Orchestrator) initSession(ctx context.Context) (context.Context, *os.Fi
 		return ctx, nil, fmt.Errorf("create session base: %w", err)
 	}
 
-	sessionID := fmt.Sprintf("%s-%s-%s", time.Now().Format("2006-01-02"), newUUID(), o.Name)
+	sessionID := fmt.Sprintf("%s-%s", newUUID(), utils.SanitizeName(o.Name))
 	sessionDir := filepath.Join(sessionBase, sessionID)
 
 	if err := os.Mkdir(sessionDir, 0o755); err != nil {
@@ -68,6 +70,11 @@ func (o *Orchestrator) initSession(ctx context.Context) (context.Context, *os.Fi
 		return ctx, nil, fmt.Errorf("create logs dir: %w", err)
 	}
 
+	artifactsDir := filepath.Join(sessionDir, "artifacts")
+	if err := os.Mkdir(artifactsDir, 0o755); err != nil {
+		return ctx, nil, fmt.Errorf("create artifact dir: %w", err)
+	}
+
 	logFile, err := os.Create(filepath.Join(logsDir, "run.log"))
 	if err != nil {
 		return ctx, nil, fmt.Errorf("create log file: %w", err)
@@ -77,17 +84,19 @@ func (o *Orchestrator) initSession(ctx context.Context) (context.Context, *os.Fi
 	logger := slog.New(slog.NewTextHandler(w, nil))
 
 	ctx = context.WithValue(ctx, sessionDirKey{}, sessionDir)
+	ctx = context.WithValue(ctx, artifactDirKey{}, artifactsDir)
 	ctx = context.WithValue(ctx, sessionNameKey{}, o.Name)
 	ctx = context.WithValue(ctx, sessionIDKey{}, sessionID)
 	ctx = context.WithValue(ctx, loggerKey{}, logger)
 	return ctx, logFile, nil
 }
 
-// newUUID returns a random UUID v4 string using crypto/rand.
+// newUUID returns a random unique ID string based on timestamp and crypto/rand bytes.
 func newUUID() string {
-	var b [16]byte
+	now := time.Now()
+	milli := now.UnixMilli()
+	timeStr := fmt.Sprintf("%s-%d", now.Format("2006-01-02"), milli)
+	var b [4]byte
 	_, _ = rand.Read(b[:])
-	b[6] = (b[6] & 0x0f) | 0x40 // version 4
-	b[8] = (b[8] & 0x3f) | 0x80 // variant bits
-	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
+	return fmt.Sprintf("%s-%x", timeStr, b[:])
 }
