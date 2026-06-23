@@ -13,8 +13,8 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
+	"log/slog"
 	"time"
 
 	"github.com/dev-igorcarvalho/don/caporegime/pkg/primitives"
@@ -23,12 +23,13 @@ import (
 func main() {
 	// Create a simple pipeline that does something
 	p := primitives.NewPipeline("Hello Workflow", func(ctx context.Context) error {
-		fmt.Println("Starting Hello Workflow...")
+		logger := primitives.Logger(ctx)
+		logger.Info("Starting Hello Workflow...")
 		for i := 1; i <= 5; i++ {
-			fmt.Printf("Step %d: Doing work...\n", i)
+			logger.Info("Doing work...", "step", i)
 			time.Sleep(500 * time.Millisecond)
 		}
-		fmt.Println("Hello Workflow completed successfully!")
+		logger.Info("Hello Workflow completed successfully!")
 		return nil
 	})
 

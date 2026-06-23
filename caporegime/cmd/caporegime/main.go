@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
 
 	"github.com/dev-igorcarvalho/don/caporegime/internal/tui"
@@ -26,16 +27,16 @@ func main() {
 
 	if *initFlag {
 		if err := tui.InitializeWorkspace(defaultWorkflowsDir); err != nil {
-			fmt.Fprintf(os.Stderr, "Error initializing workspace: %v\n", err)
+			slog.Error("Error initializing workspace", "error", err)
 			os.Exit(1)
 		}
-		fmt.Printf("Workspace initialized successfully at %s!\n", defaultWorkflowsDir)
+		slog.Info("Workspace initialized successfully", "directory", defaultWorkflowsDir)
 		os.Exit(0)
 	}
 
 	items, err := tui.DiscoverWorkflows(defaultWorkflowsDir)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error discovering workflows: %v\n", err)
+		slog.Error("Error discovering workflows", "error", err)
 		os.Exit(1)
 	}
 
