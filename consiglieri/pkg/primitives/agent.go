@@ -27,8 +27,7 @@ type FoundationModelResult interface {
 	PersistArtifact(ctx context.Context, artifactName string) (string, error)
 }
 
-// Agent is a reusable unit that runs prompts via the Claude Code CLI.
-// Setting Workdir controls which CLAUDE.md is loaded automatically.
+// Agent is a reusable unit that runs prompts via an AgentProvider.
 type Agent[T FoundationModelResult] struct {
 	Name        string
 	Provider    AgentProvider
@@ -58,7 +57,6 @@ func (a *Agent[T]) isValid() error {
 
 // Run executes the agent lifecycle: validate, before hook, execute, after hook, parse.
 func (a *Agent[T]) Run(ctx context.Context) (*AgentResponse, error) {
-	var err error
 	if err := a.isValid(); err != nil {
 		return nil, err
 	}
@@ -114,11 +112,11 @@ func (a *Agent[T]) execute(ctx context.Context) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	agenticProvider, providerArgs := a.Provider.ResolveProviderCmdLine(prompt)
-	out, err := execCommandContext(ctx, agenticProvider, a.resolveArgs(providerArgs)...).Output()
+	providerCmd, providerArgs := a.Provider.ResolveProviderCmdLine(prompt)
+	out, err := execCommandContext(ctx, providerCmd, a.resolveArgs(providerArgs)...).Output()
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
-			return nil, fmt.Errorf("%s: %s exited %d: %s", a.Name, agenticProvider, exitErr.ExitCode(), string(exitErr.Stderr))
+			return nil, fmt.Errorf("%s: %s exited %d: %s", a.Name, providerCmd, exitErr.ExitCode(), string(exitErr.Stderr))
 		}
 		return nil, fmt.Errorf("%s: exec: %w", a.Name, err)
 	}
@@ -140,17 +138,25 @@ func (a *Agent[T]) parseResult(out []byte) (*T, error) {
 	return &r, nil
 }
 
-// resolvePrompt returns Agent.Prompt, or the file contents if Prompt ends in .md.
-func (a *Agent[T]) resolvePrompt() (string, error) {
+// readPromptContent reads the raw prompt string, either directly from Prompt or from a file if Prompt ends in .md.
+func (a *Agent[T]) readPromptContent() (string, error) {
 	if !strings.HasSuffix(a.Prompt, ".md") {
-		return fmt.Sprintf("%s \n %s", AgentResponseFormatEnforcerXml, a.Prompt), nil
+		return a.Prompt, nil
 	}
 	data, err := os.ReadFile(a.Prompt)
 	if err != nil {
 		return "", fmt.Errorf("prompt file %q: %w", a.Prompt, err)
 	}
-	res := string(data)
-	return fmt.Sprintf("%s \n %s", AgentResponseFormatEnforcerXml, res), nil
+	return string(data), nil
+}
+
+// resolvePrompt returns Agent.Prompt wrapped with formatting enforcer, or the file contents wrapped if Prompt ends in .md.
+func (a *Agent[T]) resolvePrompt() (string, error) {
+	content, err := a.readPromptContent()
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s \n %s", AgentResponseFormatEnforcerXml, content), nil
 }
 
 func (a *Agent[T]) resolveArgs(baseArgs []string) []string {
