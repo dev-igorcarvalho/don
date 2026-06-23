@@ -1,4 +1,4 @@
-module don_consiglieri
+module github.com/dev-igorcarvalho/don/caporegime
 
 go 1.26.1
 

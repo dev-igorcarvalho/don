@@ -5,6 +5,68 @@ import (
 )
 
 func (m MainModel) View() string {
+	if m.state == viewInit {
+		var initView string
+		switch {
+		case m.initializing:
+			initView = lipgloss.JoinVertical(
+				lipgloss.Left,
+				TitleStyle.Render("Initializing Workspace..."),
+				"",
+				m.spinner.View()+" Creating directory structure and sample workflow...",
+			)
+		case m.initErr != nil:
+			initView = lipgloss.JoinVertical(
+				lipgloss.Left,
+				TitleStyle.Render("Workspace Initialization Error"),
+				"",
+				ErrorStatusStyle.Render("Error: "+m.initErr.Error()),
+				"",
+				RunningStatusStyle.Render("▶ Press [i] to try again"),
+				MutedTextStyle.Render("▶ Press [q] or [ctrl+c] to quit"),
+			)
+		default:
+			initView = lipgloss.JoinVertical(
+				lipgloss.Left,
+				TitleStyle.Render("Welcome to Don Caporegime!"),
+				"",
+				"No agentic workflows were found in your workspace.",
+				"To get started, we need to initialize the workspace directory structure.",
+				"",
+				MutedTextStyle.Render("This will create:"),
+				"  • "+m.workDir+"/",
+				"  • "+m.workDir+"/hello.go (a sample Hello Workflow)",
+				"",
+				RunningStatusStyle.Render("▶ Press [i] to initialize the workspace"),
+				MutedTextStyle.Render("▶ Press [q] or [ctrl+c] to quit"),
+			)
+		}
+
+		mainHeight := m.mainHeight()
+		w := m.width - 4
+		if w < 20 {
+			w = 20
+		}
+		h := mainHeight - 4
+		if h < 10 {
+			h = 10
+		}
+
+		pane := ActivePaneStyle.
+			Width(w).
+			Height(h).
+			Render(initView)
+
+		return DocStyle.Render(lipgloss.JoinVertical(
+			lipgloss.Left,
+			HeaderStyle.Render(" DON CAPOREGIME WORKFLOW SETUP "),
+			"",
+			pane,
+			"",
+			MutedTextStyle.Render("ctrl+c/q: quit • i: initialize workspace"),
+		))
+	}
+
 	// 1. Left View: Workflows List
 	leftView := m.list.View()
 
@@ -104,7 +166,7 @@ func (m MainModel) View() string {
 	// Stitch everything together inside DocStyle margin
 	return DocStyle.Render(lipgloss.JoinVertical(
 		lipgloss.Left,
-		HeaderStyle.Render(" DON CONSIGLIERI WORKFLOW DASHBOARD "),
+		HeaderStyle.Render(" DON CAPOREGIME WORKFLOW DASHBOARD "),
 		"",
 		mainLayout,
 		"",

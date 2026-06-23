@@ -2,12 +2,13 @@ package primitives
 
 import (
 	"context"
-	"don_consiglieri/pkg/utils"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/dev-igorcarvalho/don/caporegime/pkg/utils"
 )
 
 func TestSessionGetters(t *testing.T) {
@@ -96,7 +97,7 @@ func TestInitSession(t *testing.T) {
 	if !ok {
 		t.Error("SessionDir not found in context")
 	}
-	if !strings.Contains(sessionDir, ".agentic/session") {
+	if !strings.Contains(sessionDir, ".caporegime/session") {
 		t.Errorf("unexpected sessionDir: %s", sessionDir)
 	}
 
@@ -183,8 +184,8 @@ func TestInitSession_Errors(t *testing.T) {
 		}
 		defer os.RemoveAll(tmpDir)
 
-		// Create a file named .agentic
-		err = os.WriteFile(filepath.Join(tmpDir, ".agentic"), []byte("blocker"), 0644)
+		// Create a file named .caporegime
+		err = os.WriteFile(filepath.Join(tmpDir, ".caporegime"), []byte("blocker"), 0644)
 		if err != nil {
 			t.Fatal(err)
 		}

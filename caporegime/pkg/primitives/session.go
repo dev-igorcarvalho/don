@@ -8,7 +8,7 @@
 //
 // Files under the session directory are structured as follows:
 //
-//	.agentic/session/<timestamp>-<rand>-<orchestrator_name>/
+//	.caporegime/session/<timestamp>-<rand>-<orchestrator_name>/
 //	├── logs/
 //	│   └── run.log
 //	└── artifacts/
@@ -20,13 +20,14 @@ package primitives
 import (
 	"context"
 	"crypto/rand"
-	"don_consiglieri/pkg/utils"
 	"fmt"
 	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/dev-igorcarvalho/don/caporegime/pkg/utils"
 )
 
 // sessionDirKey is a context key used to store and retrieve the session's root directory path.
@@ -107,7 +108,7 @@ func (o *Orchestrator) initSession(ctx context.Context) (context.Context, *os.Fi
 	return ctx, logFile, nil
 }
 
-// ensureSessionDirs creates the standard folder hierarchy under the ".agentic/session" directory in the
+// ensureSessionDirs creates the standard folder hierarchy under the ".caporegime/session" directory in the
 // current working directory. It creates a unique subdirectory for the current session, along with
 // "logs" and "artifacts" subdirectories.
 func ensureSessionDirs(sessionName string) (sessionDir, artifactsDir, logsDir, sessionID string, err error) {
@@ -116,7 +117,7 @@ func ensureSessionDirs(sessionName string) (sessionDir, artifactsDir, logsDir, s
 		return "", "", "", "", fmt.Errorf("getwd: %w", err)
 	}
 
-	sessionBase := filepath.Join(pwd, ".agentic", "session")
+	sessionBase := filepath.Join(pwd, ".caporegime", "session")
 	if err := os.MkdirAll(sessionBase, 0o755); err != nil {
 		return "", "", "", "", fmt.Errorf("create session base: %w", err)
 	}

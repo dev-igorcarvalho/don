@@ -56,7 +56,7 @@ func TestOrchestrator_AddAgent(t *testing.T) {
 }
 
 func TestOrchestrator_Run(t *testing.T) {
-	defer os.RemoveAll(".agentic")
+	defer os.RemoveAll(".caporegime")
 
 	t.Run("invalid orchestrator - no name", func(t *testing.T) {
 		o := NewOrchestrator("", &mockWorkflow{})
@@ -136,7 +136,7 @@ func TestOrchestrator_Run(t *testing.T) {
 		}
 		defer os.RemoveAll(tmpDir)
 
-		err = os.WriteFile(filepath.Join(tmpDir, ".agentic"), []byte("blocker"), 0644)
+		err = os.WriteFile(filepath.Join(tmpDir, ".caporegime"), []byte("blocker"), 0644)
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/list"
@@ -15,7 +16,21 @@ type viewState int
 const (
 	viewDashboard viewState = iota
 	viewExecution
+	viewInit
 )
+
+const keyCtrlC = "ctrl+c"
+
+type workspaceInitMsg struct {
+	err error
+}
+
+func initializeWorkspaceCmd(dir string) tea.Cmd {
+	return func() tea.Msg {
+		err := InitializeWorkspace(dir)
+		return workspaceInitMsg{err: err}
+	}
+}
 
 type MainModel struct {
 	state    viewState
@@ -32,6 +47,10 @@ type MainModel struct {
 	logLines   []string
 	runErr     error
 	activeItem *WorkflowItem
+
+	// Initialization State
+	initializing bool
+	initErr      error
 }
 
 func NewMainModel(workDir string, items []list.Item) MainModel {
@@ -50,8 +69,13 @@ func NewMainModel(workDir string, items []list.Item) MainModel {
 	s.Spinner = spinner.Dot
 	s.Style = RunningStatusStyle
 
+	state := viewDashboard
+	if len(items) == 0 {
+		state = viewInit
+	}
+
 	return MainModel{
-		state:    viewDashboard,
+		state:    state,
 		list:     l,
 		viewport: vp,
 		spinner:  s,
@@ -89,7 +113,7 @@ func (m MainModel) rightWidth() int {
 
 func (m MainModel) handleKeyMsg(msg tea.KeyMsg) (MainModel, tea.Cmd) {
 	switch msg.String() {
-	case "ctrl+c":
+	case keyCtrlC:
 		if m.runner != nil {
 			m.runner.Stop()
 		}
@@ -144,8 +168,24 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+		if m.state == viewInit {
+			switch msg.String() {
+			case keyCtrlC, "q":
+				return m, tea.Quit
+			case "i":
+				if !m.initializing {
+					m.initializing = true
+					m.initErr = nil
+					return m, tea.Batch(
+						m.spinner.Tick,
+						initializeWorkspaceCmd(m.workDir),
+					)
+				}
+			}
+			return m, nil
+		}
 		switch msg.String() {
-		case "ctrl+c", "esc", "enter":
+		case keyCtrlC, "esc", "enter":
 			return m.handleKeyMsg(msg)
 		}
 
@@ -185,6 +225,27 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.viewport.GotoBottom()
 		return m, nil
 
+	case workspaceInitMsg:
+		m.initializing = false
+		if msg.err != nil {
+			m.initErr = msg.err
+			return m, nil
+		}
+		// Workspace initialized successfully. Load workflows now.
+		items, err := DiscoverWorkflows(m.workDir)
+		if err != nil {
+			m.initErr = err
+			return m, nil
+		}
+		if len(items) == 0 {
+			m.initErr = fmt.Errorf("workspace initialized but no workflows found")
+			return m, nil
+		}
+		// Populate list and transition to dashboard view
+		m.list.SetItems(items)
+		m.state = viewDashboard
+		return m, nil
+
 	case spinner.TickMsg:
 		var cmd tea.Cmd
 		m.spinner, cmd = m.spinner.Update(msg)
@@ -193,6 +254,9 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// Update children based on focus or running state
 	var cmd tea.Cmd
+	if m.state == viewInit {
+		return m, nil
+	}
 	if m.running || len(m.logLines) > 0 {
 		m.viewport, cmd = m.viewport.Update(msg)
 		cmds = append(cmds, cmd)

@@ -1,10 +1,10 @@
-# Don Consiglieri
+# Don Caporegime
 
 A Go-based framework for orchestrating AI agents and task pipelines using various LLM CLI providers.
 
 ## Project Overview
 
-Don Consiglieri provides a structured way to define and run AI agents. It abstracts the interaction with LLM CLIs (like Claude Code, Gemini CLI, etc.) through a consistent interface, allowing for complex multi-step workflows, pipelines, and orchestration.
+Don Caporegime provides a structured way to define and run AI agents. It abstracts the interaction with LLM CLIs (like Claude Code, Gemini CLI, etc.) through a consistent interface, allowing for complex multi-step workflows, pipelines, and orchestration.
 
 ### Core Architecture (`pkg/primitives`)
 
@@ -60,5 +60,5 @@ Don Consiglieri provides a structured way to define and run AI agents. It abstra
 ### User Interface
 
 - **Dashboard**: The main TUI view for selecting and launching registered **Workflows**.
-- **Workflow**: A named set of **Pipelines** (or a single Pipeline) managed by an **Orchestrator** that performs a high-level task. Workflows are discovered as Go source files within the `.agentic/workflows` directory and executed as standalone processes using `go run` by the TUI.
+- **Workflow**: A named set of **Pipelines** (or a single Pipeline) managed by an **Orchestrator** that performs a high-level task. Workflows are discovered as Go source files within the `.caporegime/workflows` directory and executed as standalone processes using `go run` by the TUI.
 - **Execution Tab**: A TUI component that displays the real-time progress and logs of a running **Workflow** by capturing the output of its process.

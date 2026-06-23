@@ -2,7 +2,6 @@ package primitives
 
 import (
 	"context"
-	"don_consiglieri/pkg/utils"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,6 +10,8 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+
+	"github.com/dev-igorcarvalho/don/caporegime/pkg/utils"
 )
 
 type mockProvider struct {

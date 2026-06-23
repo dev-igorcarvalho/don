@@ -1,28 +1,41 @@
-// Package main serves as the entry point for the Don Consiglieri TUI dashboard CLI tool.
+// Package main serves as the entry point for the Don Caporegime TUI dashboard CLI tool.
 // It discovers registered agentic workflows and launches the terminal UI dashboard.
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"os"
 
-	"don_consiglieri/internal/tui"
+	"github.com/dev-igorcarvalho/don/caporegime/internal/tui"
 
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
 // defaultWorkflowsDir is the default directory relative to the repository root
-// where the TUI dashboard searches for registered agentic workflows.
-const defaultWorkflowsDir = ".agentic/workflows"
+// where the TUI dashboard searches for registered workflows.
+const defaultWorkflowsDir = tui.DefaultWorkflowsDir
 
 // main is the entry point of the CLI application. It discovers available workflows
 // in the default directory and starts the interactive terminal dashboard.
 func main() {
-	items, err := setupWorkflows(defaultWorkflowsDir)
+	initFlag := flag.Bool("init", false, "Initialize the workspace folder structure and a sample workflow")
+	flag.Parse()
+
+	if *initFlag {
+		if err := tui.InitializeWorkspace(defaultWorkflowsDir); err != nil {
+			fmt.Fprintf(os.Stderr, "Error initializing workspace: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("Workspace initialized successfully at %s!\n", defaultWorkflowsDir)
+		os.Exit(0)
+	}
+
+	items, err := tui.DiscoverWorkflows(defaultWorkflowsDir)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintf(os.Stderr, "Error discovering workflows: %v\n", err)
 		os.Exit(1)
 	}
 

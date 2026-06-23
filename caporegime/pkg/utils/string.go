@@ -1,4 +1,4 @@
-// Package utils provides utility functions and helpers for the consiglieri framework.
+// Package utils provides utility functions and helpers for the caporegime framework.
 package utils
 
 import (
