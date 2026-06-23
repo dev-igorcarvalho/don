@@ -1,4 +1,5 @@
-// description: agent runing pipleine
+// name: Try Agentic Workflow
+// description: An agentic workflow that runs an AI Agent using the AgyProvider to explain what a simple agent is in 50 lines.
 package main
 
 import (
