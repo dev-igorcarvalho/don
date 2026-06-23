@@ -21,17 +21,17 @@ func (m *mockWorkflow) Run(ctx context.Context) error {
 
 func TestOrchestrator_AddWorkflow(t *testing.T) {
 	o := NewOrchestrator("test-orch")
-	if len(o.workflows) != 0 {
-		t.Errorf("expected 0 workflows, got %d", len(o.workflows))
+	if len(o.Workflows()) != 0 {
+		t.Errorf("expected 0 workflows, got %d", len(o.Workflows()))
 	}
 
 	w := &mockWorkflow{}
 	o.AddWorkflow(w)
 
-	if len(o.workflows) != 1 {
-		t.Errorf("expected 1 workflow, got %d", len(o.workflows))
+	if len(o.Workflows()) != 1 {
+		t.Errorf("expected 1 workflow, got %d", len(o.Workflows()))
 	}
-	if o.workflows[0] != w {
+	if o.Workflows()[0] != w {
 		t.Error("workflow mismatch")
 	}
 }
@@ -42,11 +42,11 @@ func TestOrchestrator_AddAgent(t *testing.T) {
 		return nil
 	})
 
-	if len(o.workflows) != 1 {
-		t.Errorf("expected 1 workflow, got %d", len(o.workflows))
+	if len(o.Workflows()) != 1 {
+		t.Errorf("expected 1 workflow, got %d", len(o.Workflows()))
 	}
 
-	p, ok := o.workflows[0].(*Pipeline)
+	p, ok := o.Workflows()[0].(*Pipeline)
 	if !ok {
 		t.Fatal("expected workflow to be a Pipeline")
 	}
@@ -61,16 +61,16 @@ func TestOrchestrator_Run(t *testing.T) {
 	t.Run("invalid orchestrator - no name", func(t *testing.T) {
 		o := NewOrchestrator("", &mockWorkflow{})
 		err := o.Run(context.Background())
-		if err == nil || err.Error() != "orchestrator name is required" {
-			t.Errorf("expected 'orchestrator name is required' error, got %v", err)
+		if !errors.Is(err, ErrOrchestratorNameRequired) {
+			t.Errorf("expected ErrOrchestratorNameRequired error, got %v", err)
 		}
 	})
 
 	t.Run("invalid orchestrator - no workflows", func(t *testing.T) {
 		o := NewOrchestrator("test")
 		err := o.Run(context.Background())
-		if err == nil || err.Error() != "orchestrator requires at least one workflow" {
-			t.Errorf("expected 'orchestrator requires at least one workflow' error, got %v", err)
+		if !errors.Is(err, ErrOrchestratorWorkflowRequired) {
+			t.Errorf("expected ErrOrchestratorWorkflowRequired error, got %v", err)
 		}
 	})
 
