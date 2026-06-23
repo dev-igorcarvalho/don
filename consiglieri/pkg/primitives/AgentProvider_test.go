@@ -2,6 +2,7 @@ package primitives
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -20,16 +21,34 @@ func TestResolveProviderCmdLine(t *testing.T) {
 			wantArgs: []string{prompt, "--output-format", "json", "--dangerously-skip-permissions"},
 		},
 		{
+			name:     "ClaudeProvider with AdditionalArgs",
+			provider: ClaudeProvider{AdditionalArgs: []string{"--foo", "bar"}},
+			wantCmd:  "claude",
+			wantArgs: []string{prompt, "--output-format", "json", "--dangerously-skip-permissions", "--foo", "bar"},
+		},
+		{
 			name:     "GeminiProvider",
 			provider: GeminiProvider{},
 			wantCmd:  "gemini",
 			wantArgs: []string{"-p", prompt, "--output-format", "json", "--approval-mode", "auto_edit"},
 		},
 		{
+			name:     "GeminiProvider with AdditionalArgs",
+			provider: GeminiProvider{AdditionalArgs: []string{"--temp", "0.7"}},
+			wantCmd:  "gemini",
+			wantArgs: []string{"-p", prompt, "--output-format", "json", "--approval-mode", "auto_edit", "--temp", "0.7"},
+		},
+		{
 			name:     "AgyProvider",
 			provider: AgyProvider{},
 			wantCmd:  "agy",
 			wantArgs: []string{"-p", prompt, "--dangerously-skip-permissions"},
+		},
+		{
+			name:     "AgyProvider with AdditionalArgs",
+			provider: AgyProvider{AdditionalArgs: []string{"--verbose"}},
+			wantCmd:  "agy",
+			wantArgs: []string{"-p", prompt, "--dangerously-skip-permissions", "--verbose"},
 		},
 	}
 
@@ -120,6 +139,9 @@ func TestProviderParse(t *testing.T) {
 		err = p.Parse([]byte(`{"val":"agy"}`), &resStruct)
 		if err == nil {
 			t.Fatal("AgyProvider.Parse expected error for unknown target type, got nil")
+		}
+		if !strings.Contains(err.Error(), "unknown target type: *primitives.testStruct") {
+			t.Errorf("expected error message to contain 'unknown target type: *primitives.testStruct', got: %v", err.Error())
 		}
 	})
 }
