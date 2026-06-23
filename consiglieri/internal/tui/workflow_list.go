@@ -38,26 +38,10 @@ func DiscoverWorkflows(dir string) ([]list.Item, error) {
 		}
 
 		fullPath := filepath.Join(dir, file.Name())
-		name := strings.TrimSuffix(file.Name(), ".go")
-		name = strings.ReplaceAll(name, " ", "_")
-		description := "No description provided."
+		defaultName := strings.TrimSuffix(file.Name(), ".go")
+		defaultName = strings.ReplaceAll(defaultName, " ", "_")
 
-		f, err := os.Open(fullPath)
-		if err == nil {
-			scanner := bufio.NewScanner(f)
-			for scanner.Scan() {
-				line := strings.TrimSpace(scanner.Text())
-				if strings.HasPrefix(line, "//") {
-					comment := strings.TrimSpace(strings.TrimPrefix(line, "//"))
-					if strings.HasPrefix(strings.ToLower(comment), "name:") {
-						name = strings.TrimSpace(comment[5:])
-					} else if strings.HasPrefix(strings.ToLower(comment), "description:") {
-						description = strings.TrimSpace(comment[12:])
-					}
-				}
-			}
-			f.Close()
-		}
+		name, description := parseWorkflowMetadata(fullPath, defaultName)
 
 		items = append(items, WorkflowItem{
 			name:        name,
@@ -67,4 +51,30 @@ func DiscoverWorkflows(dir string) ([]list.Item, error) {
 	}
 
 	return items, nil
+}
+
+// parseWorkflowMetadata reads name and description comments from a Go file.
+func parseWorkflowMetadata(filePath string, defaultName string) (name string, description string) {
+	name = defaultName
+	description = "No description provided."
+
+	f, err := os.Open(filePath)
+	if err != nil {
+		return name, description
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if strings.HasPrefix(line, "//") {
+			comment := strings.TrimSpace(strings.TrimPrefix(line, "//"))
+			if strings.HasPrefix(strings.ToLower(comment), "name:") {
+				name = strings.TrimSpace(comment[5:])
+			} else if strings.HasPrefix(strings.ToLower(comment), "description:") {
+				description = strings.TrimSpace(comment[12:])
+			}
+		}
+	}
+	return name, description
 }

@@ -13,10 +13,7 @@ func (m MainModel) View() string {
 	var rightTitle string
 
 	selectedItem := m.list.SelectedItem()
-	mainHeight := m.height - 6
-	if mainHeight < 10 {
-		mainHeight = 10
-	}
+	mainHeight := m.mainHeight()
 
 	switch {
 	case m.running || len(m.logLines) > 0:
@@ -67,14 +64,8 @@ func (m MainModel) View() string {
 	}
 
 	// Adjust pane dimensions
-	leftWidth := m.width / 3
-	if leftWidth < 20 {
-		leftWidth = 20
-	}
-	rightWidth := m.width - leftWidth - 4
-	if rightWidth < 20 {
-		rightWidth = 20
-	}
+	leftWidth := m.leftWidth()
+	rightWidth := m.rightWidth()
 
 	leftPane := InactivePaneStyle.
 		Width(leftWidth - 4).
