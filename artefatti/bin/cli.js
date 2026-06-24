@@ -36,17 +36,17 @@ function setup() {
 
   // Files to copy
   const filesToCopy = [
-    { src: 'README.md', dest: 'README.md' },
-    { src: 'rules/pipeline-workflow-rules.md', dest: 'rules/pipeline-workflow-rules.md' },
-    { src: 'rules/workflow.md', dest: 'rules/workflow.md' }
+    { src: path.join(__dirname, '../README.md'), dest: 'README.md', display: 'README.md' },
+    { src: path.join(sourceAssetsDir, 'rules/pipeline-workflow-rules.md'), dest: 'rules/pipeline-workflow-rules.md', display: 'rules/pipeline-workflow-rules.md' },
+    { src: path.join(sourceAssetsDir, 'rules/workflow.md'), dest: 'rules/workflow.md', display: 'rules/workflow.md' }
   ];
 
   for (const file of filesToCopy) {
-    const srcPath = path.join(sourceAssetsDir, file.src);
+    const srcPath = file.src;
     const destPath = path.join(artefattiDir, file.dest);
 
     if (!fs.existsSync(srcPath)) {
-      console.error(`❌ Source file not found in assets: ${file.src}`);
+      console.error(`❌ Source file not found: ${file.display}`);
       continue;
     }
 
@@ -55,7 +55,7 @@ function setup() {
         fs.copyFileSync(srcPath, destPath);
         console.log(`Copied file: ${path.relative(targetDir, destPath)}`);
       } catch (err) {
-        console.error(`❌ Error copying ${file.src}:`, err.message);
+        console.error(`❌ Error copying ${file.display}:`, err.message);
       }
     } else {
       console.log(`File already exists in target, skipped: ${path.relative(targetDir, destPath)}`);
@@ -86,7 +86,7 @@ function setup() {
         fs.copyFileSync(workflowSrc, workflowDest);
         console.log(`Copied (and overwrote) file: ${path.relative(targetDir, workflowDest)}`);
       } catch (err) {
-        console.error(`❌ Error copying rules/pipeline-workflow-rules.md to .claude:`, err.message);
+        console.error(`❌ Error copying rules/pipeline-workflow-rulesi.md to .claude:`, err.message);
       }
     }
   }

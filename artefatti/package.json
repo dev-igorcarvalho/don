@@ -1,6 +1,6 @@
 {
   "name": "don-artefatti",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Scaffolds .artefatti workspace structure for agentic pipeline orchestration",
   "main": "bin/cli.js",
   "bin": {
