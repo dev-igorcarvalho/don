@@ -23,27 +23,36 @@ Don Caporegime provides a structured way to define and run AI agents. It abstrac
 
 ### Commands
 - **Build**: `go build ./...`
-- **Test**: `go test ./pkg/primitives/...`
+- **Test**: `go test ./...`
 - **Lint**: `golangci-lint run ./...`
 
 ## Development Conventions
 
-### Coding Style
-- Follow standard Go idioms and `gofmt` formatting.
-- Use explicit error handling.
-- Maintain a clean separation between the `pkg` layer (primitives) and potential application logic.
+### Coding Style & Design Rules
+
+> [!IMPORTANT]
+> **Consumer-Side Interfaces (CRITICAL)**
+> - **NEVER** define interfaces in the package that implements them (producer-side).
+> - **ALWAYS** define interfaces in the package that consumes the behavior (consumer-side).
+> - This is a non-negotiable standard in this project to satisfy the Interface Segregation Principle.
+
+- **Hexagonal Isolation**: Maintain a clean boundary between the core primitive tools in `pkg/primitives` and the CLI/TUI frontend layers in `internal/tui`. Keep `pkg/` entirely independent from any `internal/` packages.
+- **Go Conventions**: Follow standard Go idioms and `gofmt` formatting.
+- **Logging**: Use `log/slog`. Pass `context.Context` through all calls to preserve trace correlation and retrieve the session logger using `Logger(ctx)`.
+- **Errors**: Use explicit error handling and wrap error chains with context (e.g., `fmt.Errorf("failed to run step: %w", err)`).
 
 ### Testing
 - Every new feature or bug fix must be accompanied by unit tests in a corresponding `_test.go` file.
 - Use table-driven tests where appropriate.
-- Mock external dependencies (like `exec.Command`) to keep tests fast and deterministic.
+- Mock external dependencies (like `exec.Command` or LLM CLI executions) using helper process patterns (`GO_WANT_HELPER_PROCESS`) to keep tests fast and deterministic.
 
 ### Commits
-- Use [Conventional Commits](https://www.conventionalcommits.org/) (e.g., `feat:`, `fix:`, `chore:`, `test:`).
+- Use [Conventional Commits](https://www.conventionalcommits.org/) (e.g., `feat(primitives): add provider`, `fix(tui): handle resize`, `test: add unit test`).
 - Group related changes (e.g., a feature and its tests) into a single commit.
+- **NEVER** stage or commit any files or directories inside or under `.caporegime`. They must remain untracked.
 
 ### Documentation
-- Keep `GEMINI.md` updated with major architectural changes or new development workflows.
+- Keep `GEMINI.md` and `AGENTS.md` updated with major architectural changes, guidelines, or new development workflows.
 - Use descriptive comments for exported symbols.
 
 
@@ -62,3 +71,4 @@ Don Caporegime provides a structured way to define and run AI agents. It abstrac
 - **Dashboard**: The main TUI view for selecting and launching registered **Workflows**.
 - **Workflow**: A named set of **Pipelines** (or a single Pipeline) managed by an **Orchestrator** that performs a high-level task. Workflows are discovered as Go source files within the `.caporegime/workflows` directory and executed as standalone processes using `go run` by the TUI.
 - **Execution Tab**: A TUI component that displays the real-time progress and logs of a running **Workflow** by capturing the output of its process.
+- **No Commits under .caporegime:** NEVER stage or commit any files or directories inside or under `.caporegime` (such as `.caporegime/workflows/*` or `.caporegime/session/*`). These files are reserved for local run configurations, workflow files, and session logs and must remain untracked.

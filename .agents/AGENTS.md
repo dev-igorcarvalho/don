@@ -86,6 +86,7 @@ Run commands in their respective package directories:
 ## 5. Development Guardrails for AI Agents
 
 *   **No Unauthorized Actions:** NEVER commit any changes or execute destructive actions without presenting a plan and getting explicit user approval.
+*   **No Commits under .caporegime:** NEVER stage or commit any files or directories inside or under `.caporegime` (such as `.caporegime/workflows/*` or `.caporegime/session/*`). These files are reserved for local run configurations, workflow files, and session logs and must remain untracked.
 *   **Testing First (TDD):** Accompany every bug fix or feature implementation with test cases (table-driven tests are preferred where applicable).
 *   **Semantic Commits:** Commit messages must strictly follow the conventional commits specification (e.g., `feat(api): add auth filter`, `fix(TUI): adjust layout boundaries`). Use the `semantic-commit` skill to run commits.
-
+*   **Contextual Awareness:** Before making changes to shared packages in `pkg/`, verify if the changes impact multiple downstream services; run all relevant test suites before finalizing the PR.
