@@ -33,9 +33,9 @@ func main() {
 		}
 		donName := utils.GetDonName()
 		fmt.Printf("\n🕴️  Welcome to the Family, %s.\n\n", donName)
-		fmt.Println(`"I'm gonna make him an offer he can't refuse."`)
-		fmt.Printf("\nWorkspace initialized with proper respect at: %s\n", defaultWorkflowsDir)
+		fmt.Println(`"I'm gonna make you an offer you can't refuse."`)
 		fmt.Println("The foundation of our Cosa Nostra is laid. Go make us proud.")
+		fmt.Printf("\n\nWorkspace initialized with proper respect at: %s\n", defaultWorkflowsDir)
 		os.Exit(0)
 	}
 

@@ -11,7 +11,7 @@ import (
 func GetDonName() string {
 	u, err := user.Current()
 	if err != nil {
-		return "Don"
+		return ""
 	}
 	name := u.Name
 	if name == "" {
@@ -22,5 +22,5 @@ func GetDonName() string {
 	if !strings.Contains(name, " ") && len(name) > 0 {
 		name = strings.ToUpper(name[:1]) + name[1:]
 	}
-	return "Don " + name
+	return name
 }
