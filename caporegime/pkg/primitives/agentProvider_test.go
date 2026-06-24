@@ -15,14 +15,26 @@ func TestResolveProviderCmdLine(t *testing.T) {
 		wantArgs []string
 	}{
 		{
-			name:     "ClaudeProvider",
-			provider: ClaudeProvider{},
+			name:     "ClaudeJsonProvider",
+			provider: ClaudeJsonProvider{},
+			wantCmd:  "claude",
+			wantArgs: []string{prompt, "--dangerously-skip-permissions"},
+		},
+		{
+			name:     "ClaudeJsonProvider with AdditionalArgs",
+			provider: ClaudeJsonProvider{AdditionalArgs: []string{"--foo", "bar"}},
+			wantCmd:  "claude",
+			wantArgs: []string{prompt, "--dangerously-skip-permissions", "--foo", "bar"},
+		},
+		{
+			name:     "ClaudeDefaultProvider",
+			provider: ClaudeDefaultProvider{},
 			wantCmd:  "claude",
 			wantArgs: []string{prompt, "--output-format", "json", "--dangerously-skip-permissions"},
 		},
 		{
-			name:     "ClaudeProvider with AdditionalArgs",
-			provider: ClaudeProvider{AdditionalArgs: []string{"--foo", "bar"}},
+			name:     "ClaudeDefaultProvider with AdditionalArgs",
+			provider: ClaudeDefaultProvider{AdditionalArgs: []string{"--foo", "bar"}},
 			wantCmd:  "claude",
 			wantArgs: []string{prompt, "--output-format", "json", "--dangerously-skip-permissions", "--foo", "bar"},
 		},
@@ -70,13 +82,13 @@ func TestProviderParse(t *testing.T) {
 		Val string `json:"val"`
 	}
 
-	// 1. ClaudeProvider.Parse
+	// 1. ClaudeDefaultProvider.Parse
 	t.Run("ClaudeProvider_Parse", func(t *testing.T) {
-		p := ClaudeProvider{}
+		p := ClaudeDefaultProvider{}
 		var res testStruct
 		err := p.Parse([]byte(`{"val":"hello"}`), &res)
 		if err != nil {
-			t.Fatalf("ClaudeProvider.Parse failed: %v", err)
+			t.Fatalf("ClaudeDefaultProvider.Parse failed: %v", err)
 		}
 		if res.Val != "hello" {
 			t.Errorf("expected hello, got %s", res.Val)
@@ -139,6 +151,55 @@ func TestProviderParse(t *testing.T) {
 		err = p.Parse([]byte(`{"val":"agy"}`), &resStruct)
 		if err == nil {
 			t.Fatal("AgyProvider.Parse expected error for unknown target type, got nil")
+		}
+		if !strings.Contains(err.Error(), "unknown target type: *primitives.testStruct") {
+			t.Errorf("expected error message to contain 'unknown target type: *primitives.testStruct', got: %v", err.Error())
+		}
+	})
+
+	// 4. ClaudeJsonProvider.Parse
+	t.Run("ClaudeJsonProvider_Parse", func(t *testing.T) {
+		p := ClaudeJsonProvider{}
+
+		// String case
+		var str string
+		err := p.Parse([]byte("raw text"), &str)
+		if err != nil {
+			t.Fatalf("ClaudeJsonProvider.Parse string failed: %v", err)
+		}
+		if str != "raw text" {
+			t.Errorf("expected raw text, got %s", str)
+		}
+
+		// Any case
+		var anyVal any
+		err = p.Parse([]byte("raw text any"), &anyVal)
+		if err != nil {
+			t.Fatalf("ClaudeJsonProvider.Parse any failed: %v", err)
+		}
+		if anyVal != "raw text any" {
+			t.Errorf("expected raw text any, got %v", anyVal)
+		}
+
+		// XML case
+		var res FoundationModelResponse
+		xmlData := []byte(`<model_response><reasoning_process>step1;step2</reasoning_process><result>success</result></model_response>`)
+		err = p.Parse(xmlData, &res)
+		if err != nil {
+			t.Fatalf("ClaudeJsonProvider.Parse XML failed: %v", err)
+		}
+		if res.ReasoningProcess != "step1;step2" {
+			t.Errorf("expected step1;step2, got %s", res.ReasoningProcess)
+		}
+		if res.Result() != "success" {
+			t.Errorf("expected success, got %s", res.Result())
+		}
+
+		// Default case (struct/unknown target type)
+		var resStruct testStruct
+		err = p.Parse([]byte(`{"val":"claude"}`), &resStruct)
+		if err == nil {
+			t.Fatal("ClaudeJsonProvider.Parse expected error for unknown target type, got nil")
 		}
 		if !strings.Contains(err.Error(), "unknown target type: *primitives.testStruct") {
 			t.Errorf("expected error message to contain 'unknown target type: *primitives.testStruct', got: %v", err.Error())

@@ -21,19 +21,33 @@ const (
 	approvalModeAutoEdit = "auto_edit"
 )
 
-// ClaudeProvider implements the AgentProvider interface for the Claude CLI backend.
-type ClaudeProvider struct {
+// ClaudeJsonProvider implements the AgentProvider interface for the Claude CLI backend.
+type ClaudeJsonProvider struct {
 	// AdditionalArgs allows specifying custom flags for the claude command.
 	AdditionalArgs []string
 }
 
-// NewClaudeProvider creates a new ClaudeProvider instance.
-func NewClaudeProvider() ClaudeProvider {
-	return ClaudeProvider{}
+// ResolveProviderCmdLine returns the command name and arguments to execute the Claude CLI for a given prompt.
+func (c ClaudeJsonProvider) ResolveProviderCmdLine(prompt string) (string, []string) {
+	args := []string{prompt, flagDangerouslySkipPerms}
+	args = append(args, c.AdditionalArgs...)
+	return "claude", args
+}
+
+// Parse unmarshals the JSON raw output from the Claude CLI execution into the target object.
+// It returns any JSON deserialization error encountered.
+func (c ClaudeJsonProvider) Parse(out []byte, target any) error {
+	return parseDefaultResponse(out, target)
+}
+
+// ClaudeDefaultProvider implements the AgentProvider interface for the Claude CLI backend.
+type ClaudeDefaultProvider struct {
+	// AdditionalArgs allows specifying custom flags for the claude command.
+	AdditionalArgs []string
 }
 
 // ResolveProviderCmdLine returns the command name and arguments to execute the Claude CLI for a given prompt.
-func (c ClaudeProvider) ResolveProviderCmdLine(prompt string) (string, []string) {
+func (c ClaudeDefaultProvider) ResolveProviderCmdLine(prompt string) (string, []string) {
 	args := []string{prompt, flagOutputFormat, formatJSON, flagDangerouslySkipPerms}
 	args = append(args, c.AdditionalArgs...)
 	return "claude", args
@@ -41,7 +55,7 @@ func (c ClaudeProvider) ResolveProviderCmdLine(prompt string) (string, []string)
 
 // Parse unmarshals the JSON raw output from the Claude CLI execution into the target object.
 // It returns any JSON deserialization error encountered.
-func (c ClaudeProvider) Parse(out []byte, target any) error {
+func (c ClaudeDefaultProvider) Parse(out []byte, target any) error {
 	return json.Unmarshal(out, target)
 }
 
@@ -49,11 +63,6 @@ func (c ClaudeProvider) Parse(out []byte, target any) error {
 type AgyProvider struct {
 	// AdditionalArgs allows specifying custom flags for the agy command.
 	AdditionalArgs []string
-}
-
-// NewAgyProvider creates a new AgyProvider instance.
-func NewAgyProvider() AgyProvider {
-	return AgyProvider{}
 }
 
 // ResolveProviderCmdLine returns the command name and arguments to execute the Agy CLI for a given prompt.
@@ -67,29 +76,13 @@ func (a AgyProvider) ResolveProviderCmdLine(prompt string) (string, []string) {
 // Depending on the target type, it parses output as a raw string, an unmarshaled XML FoundationModelResponse,
 // or returns an error if the target type is unknown.
 func (a AgyProvider) Parse(out []byte, target any) error {
-	switch t := target.(type) {
-	case *string:
-		*t = string(out)
-		return nil
-	case *any:
-		*t = string(out)
-		return nil
-	case *FoundationModelResponse:
-		return xml.Unmarshal(out, t)
-	default:
-		return fmt.Errorf("unknown target type: %T", target)
-	}
+	return parseDefaultResponse(out, target)
 }
 
 // GeminiProvider implements the AgentProvider interface for the Gemini CLI backend.
 type GeminiProvider struct {
 	// AdditionalArgs allows specifying custom flags for the gemini command.
 	AdditionalArgs []string
-}
-
-// NewGeminiProvider creates a new GeminiProvider instance.
-func NewGeminiProvider() GeminiProvider {
-	return GeminiProvider{}
 }
 
 // ResolveProviderCmdLine returns the command name and arguments to execute the Gemini CLI for a given prompt.
@@ -103,4 +96,19 @@ func (g GeminiProvider) ResolveProviderCmdLine(prompt string) (string, []string)
 // It returns any JSON deserialization error encountered.
 func (g GeminiProvider) Parse(out []byte, target any) error {
 	return json.Unmarshal(out, target)
+}
+
+func parseDefaultResponse(out []byte, target any) error {
+	switch t := target.(type) {
+	case *string:
+		*t = string(out)
+		return nil
+	case *any:
+		*t = string(out)
+		return nil
+	case *FoundationModelResponse:
+		return xml.Unmarshal(out, t)
+	default:
+		return fmt.Errorf("unknown target type: %T", target)
+	}
 }

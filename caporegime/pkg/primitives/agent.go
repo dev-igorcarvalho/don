@@ -167,7 +167,7 @@ func (a *Agent[T]) execute(ctx context.Context) ([]byte, error) {
 func (a *Agent[T]) parseResult(out []byte) (*T, error) {
 	var r T
 	if err := a.Provider.Parse(out, &r); err != nil {
-		return nil, fmt.Errorf("%s: parse: %w\nraw output: %s", a.Name, err, string(out))
+		return nil, fmt.Errorf("%s: parseDefaultResponse: %w\nraw output: %s", a.Name, err, string(out))
 	}
 
 	// If the result type implements FailureChecker, check for logical errors.

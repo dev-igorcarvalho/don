@@ -162,7 +162,7 @@ func TestAgent_isValid(t *testing.T) {
 		{
 			name: "missing name",
 			agent: Agent[FoundationModelResponse]{
-				Provider: ClaudeProvider{},
+				Provider: ClaudeDefaultProvider{},
 				Model:    "model",
 				Prompt:   "prompt",
 			},
@@ -172,7 +172,7 @@ func TestAgent_isValid(t *testing.T) {
 		{
 			name: "missing model",
 			agent: Agent[FoundationModelResponse]{
-				Provider: ClaudeProvider{},
+				Provider: ClaudeDefaultProvider{},
 				Name:     "test",
 				Prompt:   "prompt",
 			},
@@ -182,7 +182,7 @@ func TestAgent_isValid(t *testing.T) {
 		{
 			name: "missing prompt",
 			agent: Agent[FoundationModelResponse]{
-				Provider: ClaudeProvider{},
+				Provider: ClaudeDefaultProvider{},
 				Name:     "test",
 				Model:    "model",
 			},
@@ -192,7 +192,7 @@ func TestAgent_isValid(t *testing.T) {
 		{
 			name: "valid agent",
 			agent: Agent[FoundationModelResponse]{
-				Provider: ClaudeProvider{},
+				Provider: ClaudeDefaultProvider{},
 				Name:     "test",
 				Model:    "model",
 				Prompt:   "prompt",
@@ -540,7 +540,7 @@ func TestAgent_Run(t *testing.T) {
 			wantErr:  true,
 		},
 		{
-			name: "parse error",
+			name: "parseDefaultResponse error",
 			agent: Agent[testResult]{
 				Name:     "test",
 				Provider: mockProvider{cmd: "test"},
