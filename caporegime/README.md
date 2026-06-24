@@ -215,7 +215,7 @@ Now open the **Dashboard** (`go run cmd/caporegime/main.go`) or use the installe
 
 This subproject is part of the **Don** monorepo and is licensed under the terms of the **GNU General Public License v3 (GPLv3)**. 
 
-For terms, limits, and permissions, see the root [LICENSE](../LICENSE) file.
+For terms, limits, and permissions, see the root [LICENSE](./LICENSE) file.
 
 ---
 
