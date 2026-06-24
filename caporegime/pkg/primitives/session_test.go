@@ -217,9 +217,17 @@ func TestInitSession_Errors(t *testing.T) {
 		}
 		defer os.RemoveAll(tmpDir)
 
-		origBase := os.Getenv("AGENTIC_SESSION_BASE")
-		os.Setenv("AGENTIC_SESSION_BASE", tmpDir)
-		defer os.Setenv("AGENTIC_SESSION_BASE", origBase)
+		oldWd, err := os.Getwd()
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = os.Chdir(tmpDir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer func() {
+			_ = os.Chdir(oldWd)
+		}()
 
 		orch := &Orchestrator{Name: strings.Repeat("a", 300)}
 		_, _, err = orch.initSession(context.Background())
