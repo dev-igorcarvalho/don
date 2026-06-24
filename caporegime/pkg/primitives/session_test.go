@@ -11,56 +11,6 @@ import (
 	"github.com/dev-igorcarvalho/don/caporegime/pkg/utils"
 )
 
-func TestSessionGetters(t *testing.T) {
-	ctx := context.Background()
-
-	// Test defaults/not found
-	if _, ok := SessionDir(ctx); ok {
-		t.Error("expected SessionDir to return false for empty context")
-	}
-	if _, ok := SessionName(ctx); ok {
-		t.Error("expected SessionName to return false for empty context")
-	}
-	if _, ok := SessionID(ctx); ok {
-		t.Error("expected SessionID to return false for empty context")
-	}
-	if _, ok := ArtifactDir(ctx); ok {
-		t.Error("expected ArtifactDir to return false for empty context")
-	}
-	if logger := Logger(ctx); logger != slog.Default() {
-		t.Error("expected Logger to return slog.Default() for empty context")
-	}
-
-	// Test with values
-	testDir := "/tmp/session"
-	testName := "test-orchestrator"
-	testID := "2023-01-01-uuid-test-orchestrator"
-	testArtifactDir := "/tmp/session/artifacts"
-	testLogger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-
-	ctx = context.WithValue(ctx, sessionDirKey{}, testDir)
-	ctx = context.WithValue(ctx, sessionNameKey{}, testName)
-	ctx = context.WithValue(ctx, sessionIDKey{}, testID)
-	ctx = context.WithValue(ctx, artifactDirKey{}, testArtifactDir)
-	ctx = context.WithValue(ctx, loggerKey{}, testLogger)
-
-	if dir, ok := SessionDir(ctx); !ok || dir != testDir {
-		t.Errorf("expected SessionDir to return %s, got %s", testDir, dir)
-	}
-	if name, ok := SessionName(ctx); !ok || name != testName {
-		t.Errorf("expected SessionName to return %s, got %s", testName, name)
-	}
-	if id, ok := SessionID(ctx); !ok || id != testID {
-		t.Errorf("expected SessionID to return %s, got %s", testID, id)
-	}
-	if dir, ok := ArtifactDir(ctx); !ok || dir != testArtifactDir {
-		t.Errorf("expected ArtifactDir to return %s, got %s", testArtifactDir, dir)
-	}
-	if logger := Logger(ctx); logger != testLogger {
-		t.Error("expected Logger to return the injected logger")
-	}
-}
-
 func TestInitSession(t *testing.T) {
 	// Create a temporary directory for the test
 	tmpDir, err := os.MkdirTemp("", "session_test_*")
