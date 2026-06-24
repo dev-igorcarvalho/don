@@ -1,10 +1,54 @@
 package tui
 
 import (
+	"fmt"
+
 	"github.com/charmbracelet/lipgloss"
+	"github.com/dev-igorcarvalho/don/caporegime/pkg/utils"
 )
 
 func (m MainModel) View() string {
+	if m.state == viewInitSuccess {
+		donName := utils.GetDonName()
+		initSuccessView := lipgloss.JoinVertical(
+			lipgloss.Left,
+			TitleStyle.Render(fmt.Sprintf("🕴️ Welcome to the Family, %s.", donName)),
+			"",
+			"\"A man who doesn't spend time with his family can never be a real man.\"",
+			"",
+			SuccessStatusStyle.Render("Workspace initialized with respect at:"),
+			"  • "+m.workDir+"/",
+			"",
+			"The foundation of our Cosa Nostra is laid.",
+			"",
+			RunningStatusStyle.Render("▶ Press [Enter] to assume control of the dashboard"),
+		)
+
+		mainHeight := m.mainHeight()
+		w := m.width - 4
+		if w < 20 {
+			w = 20
+		}
+		h := mainHeight - 4
+		if h < 10 {
+			h = 10
+		}
+
+		pane := ActivePaneStyle.
+			Width(w).
+			Height(h).
+			Render(initSuccessView)
+
+		return DocStyle.Render(lipgloss.JoinVertical(
+			lipgloss.Left,
+			HeaderStyle.Render(" DON CAPOREGIME WORKSPACE INITIALIZED "),
+			"",
+			pane,
+			"",
+			MutedTextStyle.Render("enter: continue to dashboard • q: quit"),
+		))
+	}
+
 	if m.state == viewInit {
 		var initView string
 		switch {

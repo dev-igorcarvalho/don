@@ -17,9 +17,11 @@ const (
 	viewDashboard viewState = iota
 	viewExecution
 	viewInit
+	viewInitSuccess
 )
 
 const keyCtrlC = "ctrl+c"
+const keyEnter = "enter"
 
 type workspaceInitMsg struct {
 	err error
@@ -129,7 +131,7 @@ func (m MainModel) handleKeyMsg(msg tea.KeyMsg) (MainModel, tea.Cmd) {
 			return m, nil
 		}
 
-	case "enter":
+	case keyEnter:
 		if m.running {
 			// Cancel execution
 			if m.runner != nil {
@@ -168,6 +170,16 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+		if m.state == viewInitSuccess {
+			switch msg.String() {
+			case keyCtrlC, "q":
+				return m, tea.Quit
+			case keyEnter, "i", " ":
+				m.state = viewDashboard
+				return m, nil
+			}
+			return m, nil
+		}
 		if m.state == viewInit {
 			switch msg.String() {
 			case keyCtrlC, "q":
@@ -185,7 +197,7 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		switch msg.String() {
-		case keyCtrlC, "esc", "enter":
+		case keyCtrlC, "esc", keyEnter:
 			return m.handleKeyMsg(msg)
 		}
 
@@ -241,9 +253,9 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.initErr = fmt.Errorf("workspace initialized but no workflows found")
 			return m, nil
 		}
-		// Populate list and transition to dashboard view
+		// Populate list and transition to success view
 		m.list.SetItems(items)
-		m.state = viewDashboard
+		m.state = viewInitSuccess
 		return m, nil
 
 	case spinner.TickMsg:
@@ -254,7 +266,7 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// Update children based on focus or running state
 	var cmd tea.Cmd
-	if m.state == viewInit {
+	if m.state == viewInit || m.state == viewInitSuccess {
 		return m, nil
 	}
 	if m.running || len(m.logLines) > 0 {

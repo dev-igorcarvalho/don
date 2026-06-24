@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/charmbracelet/bubbles/list"
@@ -56,5 +58,44 @@ func TestModelTransitions(t *testing.T) {
 	m = newModel.(MainModel)
 	if len(m.logLines) != 0 {
 		t.Error("expected logs to be cleared after pressing esc")
+	}
+}
+
+func TestWorkspaceInitTransitions(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Create a dummy .go file so DiscoverWorkflows finds it
+	dummyFile := filepath.Join(tempDir, "workflow.go")
+	err := os.WriteFile(dummyFile, []byte("// name: Dummy\n// description: Test"), 0644)
+	if err != nil {
+		t.Fatalf("failed to write dummy file: %v", err)
+	}
+
+	// Start with no items, meaning we start in viewInit state
+	model := NewMainModel(tempDir, nil)
+	if model.state != viewInit {
+		t.Errorf("expected state to be viewInit, got %v", model.state)
+	}
+
+	// Send successful workspaceInitMsg
+	newModel, cmd := model.Update(workspaceInitMsg{err: nil})
+	m := newModel.(MainModel)
+
+	if m.state != viewInitSuccess {
+		t.Errorf("expected state to transition to viewInitSuccess, got %v", m.state)
+	}
+	if cmd != nil {
+		t.Errorf("expected cmd to be nil, got %v", cmd)
+	}
+
+	// Send enter key to transition from viewInitSuccess to viewDashboard
+	newModel, cmd = m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m = newModel.(MainModel)
+
+	if m.state != viewDashboard {
+		t.Errorf("expected state to transition to viewDashboard, got %v", m.state)
+	}
+	if cmd != nil {
+		t.Errorf("expected cmd to be nil, got %v", cmd)
 	}
 }

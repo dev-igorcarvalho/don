@@ -10,6 +10,7 @@ import (
 	"os"
 
 	"github.com/dev-igorcarvalho/don/caporegime/internal/tui"
+	"github.com/dev-igorcarvalho/don/caporegime/pkg/utils"
 
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
@@ -30,7 +31,11 @@ func main() {
 			slog.Error("Error initializing workspace", "error", err)
 			os.Exit(1)
 		}
-		slog.Info("Workspace initialized successfully", "directory", defaultWorkflowsDir)
+		donName := utils.GetDonName()
+		fmt.Printf("\n🕴️  Welcome to the Family, %s.\n\n", donName)
+		fmt.Println(`"I'm gonna make him an offer he can't refuse."`)
+		fmt.Printf("\nWorkspace initialized with proper respect at: %s\n", defaultWorkflowsDir)
+		fmt.Println("The foundation of our Cosa Nostra is laid. Go make us proud.")
 		os.Exit(0)
 	}
 
