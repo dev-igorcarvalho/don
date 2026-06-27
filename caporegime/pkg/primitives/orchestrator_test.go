@@ -34,6 +34,12 @@ func TestOrchestrator_AddWorkflow(t *testing.T) {
 	if o.Workflows()[0] != w {
 		t.Error("workflow mismatch")
 	}
+
+	// Adding a nil workflow should be ignored and not crash
+	o.AddWorkflow(nil)
+	if len(o.Workflows()) != 1 {
+		t.Errorf("expected 1 workflow after nil AddWorkflow, got %d", len(o.Workflows()))
+	}
 }
 
 func TestOrchestrator_AddAgent(t *testing.T) {
@@ -160,6 +166,29 @@ func TestOrchestrator_Run(t *testing.T) {
 		}
 		if !strings.Contains(err.Error(), "session init:") {
 			t.Errorf("expected session init error, got %v", err)
+		}
+	})
+
+	t.Run("nil orchestrator", func(t *testing.T) {
+		var o *Orchestrator
+		err := o.Run(context.Background())
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		if err.Error() != "orchestrator is nil" {
+			t.Errorf("expected 'orchestrator is nil' error, got %v", err)
+		}
+	})
+
+	t.Run("nil workflow execution", func(t *testing.T) {
+		o := NewOrchestrator("nil-wf-orch")
+		o.workflows = append(o.workflows, nil)
+		err := o.Run(context.Background())
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		if !strings.Contains(err.Error(), "workflow is nil") {
+			t.Errorf("expected workflow is nil error, got %v", err)
 		}
 	})
 }

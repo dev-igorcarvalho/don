@@ -173,4 +173,32 @@ func TestPipeline_Run(t *testing.T) {
 			t.Fatalf("expected no error, got %v", err)
 		}
 	})
+
+	t.Run("NilPipeline", func(t *testing.T) {
+		var p *Pipeline
+		err := p.Run(context.Background())
+		if err == nil {
+			t.Error("expected error for nil pipeline receiver, got nil")
+		} else if err.Error() != "pipeline is nil" {
+			t.Errorf("expected 'pipeline is nil' error, got %v", err)
+		}
+	})
+
+	t.Run("PanicRecovery", func(t *testing.T) {
+		p := &Pipeline{
+			Name: "panic-pipeline",
+			fn: func(ctx context.Context) error {
+				panic("something went wrong")
+			},
+		}
+
+		err := p.Run(context.Background())
+		if err == nil {
+			t.Fatal("expected error from panic recovery, got nil")
+		}
+		expectedErrSub := "panic-pipeline: recovered from panic: something went wrong"
+		if err.Error() != expectedErrSub {
+			t.Errorf("expected error %q, got %q", expectedErrSub, err.Error())
+		}
+	})
 }

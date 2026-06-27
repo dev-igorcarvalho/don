@@ -69,6 +69,9 @@ type Agent[T FoundationModelResult] struct {
 // isValid verifies that all required fields on the agent are present and valid.
 // It returns an error if any required field is missing.
 func (a *Agent[T]) isValid() error {
+	if a == nil {
+		return errors.New("agent is nil")
+	}
 	if a.Provider == nil {
 		return errors.New("agent provider is required")
 	}

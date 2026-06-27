@@ -45,6 +45,9 @@ func NewOrchestrator(name string, workflows ...Workflow) *Orchestrator {
 
 // AddWorkflow appends a new Workflow implementation to the list of tasks registered in the orchestrator.
 func (o *Orchestrator) AddWorkflow(w Workflow) {
+	if w == nil {
+		return
+	}
 	o.workflows = append(o.workflows, w)
 }
 
@@ -69,6 +72,9 @@ func (o *Orchestrator) Workflows() []Workflow {
 // and contains at least one registered workflow task.
 // It returns ErrOrchestratorNameRequired or ErrOrchestratorWorkflowRequired if validation fails, and nil otherwise.
 func (o *Orchestrator) isValid() error {
+	if o == nil {
+		return errors.New("orchestrator is nil")
+	}
 	if o.Name == "" {
 		return ErrOrchestratorNameRequired
 	}
@@ -103,6 +109,9 @@ func (o *Orchestrator) runWorkflows(ctx context.Context) error {
 
 	for step, w := range o.workflows {
 		stepNum := step + 1
+		if w == nil {
+			return fmt.Errorf("%s: step %d: workflow is nil", o.Name, stepNum)
+		}
 		if err := ctx.Err(); err != nil {
 			return fmt.Errorf("%s: step %d: context done: %w", o.Name, stepNum, err)
 		}

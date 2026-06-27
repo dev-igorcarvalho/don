@@ -3,6 +3,7 @@ package primitives
 import (
 	"encoding/json"
 	"encoding/xml"
+	"errors"
 	"fmt"
 )
 
@@ -99,14 +100,26 @@ func (g GeminiProvider) Parse(out []byte, target any) error {
 }
 
 func parseDefaultResponse(out []byte, target any) error {
+	if target == nil {
+		return errors.New("parse target is nil")
+	}
 	switch t := target.(type) {
 	case *string:
+		if t == nil {
+			return errors.New("target string pointer is nil")
+		}
 		*t = string(out)
 		return nil
 	case *any:
+		if t == nil {
+			return errors.New("target any pointer is nil")
+		}
 		*t = string(out)
 		return nil
 	case *FoundationModelResponse:
+		if t == nil {
+			return errors.New("target response pointer is nil")
+		}
 		return xml.Unmarshal(out, t)
 	default:
 		return fmt.Errorf("unknown target type: %T", target)

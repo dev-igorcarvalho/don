@@ -663,3 +663,22 @@ func TestSanitizeFilename(t *testing.T) {
 		})
 	}
 }
+
+func TestAgent_NilReceiver(t *testing.T) {
+	var a *Agent[FoundationModelResponse]
+	err := a.isValid()
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if err.Error() != "agent is nil" {
+		t.Errorf("expected 'agent is nil' error, got %v", err)
+	}
+
+	_, err = a.Run(context.Background())
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if err.Error() != "agent is nil" {
+		t.Errorf("expected 'agent is nil' error, got %v", err)
+	}
+}

@@ -205,4 +205,36 @@ func TestProviderParse(t *testing.T) {
 			t.Errorf("expected error message to contain 'unknown target type: *primitives.testStruct', got: %v", err.Error())
 		}
 	})
+
+	// 5. parseDefaultResponse nil pointer guards
+	t.Run("ParseNilGuards", func(t *testing.T) {
+		p := AgyProvider{}
+
+		// Nil target interface
+		err := p.Parse([]byte("raw text"), nil)
+		if err == nil || err.Error() != "parse target is nil" {
+			t.Errorf("expected 'parse target is nil', got %v", err)
+		}
+
+		// Typed nil string pointer
+		var nilStr *string
+		err = p.Parse([]byte("raw text"), nilStr)
+		if err == nil || err.Error() != "target string pointer is nil" {
+			t.Errorf("expected 'target string pointer is nil', got %v", err)
+		}
+
+		// Typed nil any pointer
+		var nilAny *any
+		err = p.Parse([]byte("raw text"), nilAny)
+		if err == nil || err.Error() != "target any pointer is nil" {
+			t.Errorf("expected 'target any pointer is nil', got %v", err)
+		}
+
+		// Typed nil FoundationModelResponse pointer
+		var nilRes *FoundationModelResponse
+		err = p.Parse([]byte("<model_response></model_response>"), nilRes)
+		if err == nil || err.Error() != "target response pointer is nil" {
+			t.Errorf("expected 'target response pointer is nil', got %v", err)
+		}
+	})
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"runtime/debug"
 )
 
 // Pipeline wraps user-defined business logic with enforced cross-cutting concerns:
@@ -35,6 +36,9 @@ func NewPipeline(name string, fn func(ctx context.Context) error) *Pipeline {
 // isValid validates that the Pipeline has a non-empty name and a non-nil core function.
 // It returns an error if any of these validation checks fail.
 func (p *Pipeline) isValid() error {
+	if p == nil {
+		return errors.New("pipeline is nil")
+	}
 	if p.Name == "" {
 		return errors.New("pipeline name is required")
 	}
@@ -48,13 +52,24 @@ func (p *Pipeline) isValid() error {
 // It first checks if the context is already cancelled, validates the pipeline structure,
 // runs the Before hook (if present), executes the core function, and runs the After hook (if present).
 // It returns the error from the core function or hooks, and wraps context execution errors.
-func (p *Pipeline) Run(ctx context.Context) error {
-	if err := ctx.Err(); err != nil {
-		return fmt.Errorf("%s: context already done: %w", p.Name, err)
+func (p *Pipeline) Run(ctx context.Context) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("%s: recovered from panic: %v", p.Name, r)
+			Logger(ctx).Error("pipeline panic recovered",
+				"name", p.Name,
+				"panic_value", r,
+				"stack", string(debug.Stack()),
+			)
+		}
+	}()
+
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return fmt.Errorf("%s: context already done: %w", p.Name, ctxErr)
 	}
 
-	if err := p.isValid(); err != nil {
-		return err
+	if valErr := p.isValid(); valErr != nil {
+		return valErr
 	}
 	Logger(ctx).Info("pipeline starting", "name", p.Name)
 	if err := p.runBefore(ctx); err != nil {
@@ -64,7 +79,7 @@ func (p *Pipeline) Run(ctx context.Context) error {
 	fnErr := p.runFn(ctx)
 	afterErr := p.runAfter(ctx)
 
-	err := fnErr
+	err = fnErr
 	if err == nil {
 		err = afterErr
 	} else if afterErr != nil {
