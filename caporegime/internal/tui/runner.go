@@ -66,7 +66,7 @@ func (r *Runner) Start(ctx context.Context) {
 	go func() {
 		defer close(r.ch)
 
-		cmd := r.execCommand(runCtx, "go", "run", r.filePath)
+		cmd := r.execCommand(runCtx, r.filePath)
 
 		cw := &channelWriter{ch: r.ch}
 		cmd.Stdout = cw

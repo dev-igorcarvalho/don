@@ -55,12 +55,20 @@ func InitializeWorkspace(dir string) error {
 		filepath.Join(baseDir, filepath.Base(DefaultAgentsDir)),
 		filepath.Join(baseDir, filepath.Base(DefaultPromptsDir)),
 		filepath.Join(baseDir, filepath.Base(DefaultSessionDir)),
+		filepath.Join(baseDir, filepath.Base(DefaultBinDir)),
 	}
 
 	for _, d := range dirs {
 		if err := os.MkdirAll(d, 0755); err != nil {
 			return fmt.Errorf("failed to create directory %s: %w", d, err)
 		}
+	}
+
+	// Write a .gitignore inside the bin directory to ignore all compiled binaries
+	binDir := filepath.Join(baseDir, filepath.Base(DefaultBinDir))
+	gitignorePath := filepath.Join(binDir, ".gitignore")
+	if err := os.WriteFile(gitignorePath, []byte("*\n"), 0644); err != nil {
+		return fmt.Errorf("failed to write gitignore for bin dir: %w", err)
 	}
 
 	// Write a sample workflow file if the directory is empty or has no Go workflows

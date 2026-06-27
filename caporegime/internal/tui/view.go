@@ -151,6 +151,26 @@ func (m MainModel) View() string {
 		item := selectedItem.(WorkflowItem)
 		rightTitle = "WORKFLOW DETAILS:"
 
+		var statusInfo string
+		var actionHelp string
+
+		switch item.buildStatus {
+		case BuildStatusCompiling:
+			statusInfo = RunningStatusStyle.Render("Status: " + m.spinner.View() + " Compiling background binary...")
+			actionHelp = MutedTextStyle.Render("▶ [Please wait for compilation to complete]")
+		case BuildStatusFailed:
+			statusInfo = ErrorStatusStyle.Render("Status: ❌ Compilation failed")
+			errMsg := item.buildError
+			if len(errMsg) > 300 {
+				errMsg = errMsg[:300] + "... (truncated)"
+			}
+			statusInfo = fmt.Sprintf("%s\n\n%s\n%s", statusInfo, MutedTextStyle.Render("Compiler Output:"), errMsg)
+			actionHelp = ErrorStatusStyle.Render("▶ [Cannot run: Fix syntax or dependency errors]")
+		default:
+			statusInfo = SuccessStatusStyle.Render("Status: ✅ Ready to run")
+			actionHelp = RunningStatusStyle.Render("▶ Press [Enter] to run this workflow")
+		}
+
 		rightView = lipgloss.JoinVertical(
 			lipgloss.Left,
 			TitleStyle.Render(rightTitle),
@@ -159,11 +179,12 @@ func (m MainModel) View() string {
 			"",
 			MutedTextStyle.Render("Path: ")+item.filePath,
 			"",
+			statusInfo,
+			"",
 			MutedTextStyle.Render("Description:"),
 			item.description,
 			"",
-			"",
-			RunningStatusStyle.Render("▶ Press [Enter] to run this workflow"),
+			actionHelp,
 		)
 	default:
 		rightView = "No workflow selected."

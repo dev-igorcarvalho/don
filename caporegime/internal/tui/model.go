@@ -1,9 +1,14 @@
 package tui
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/spinner"
@@ -34,6 +39,57 @@ func initializeWorkspaceCmd(dir string) tea.Cmd {
 	}
 }
 
+type WorkflowBuildFinishedMsg struct {
+	filePath   string
+	binaryPath string
+	buildLog   string
+	err        error
+}
+
+func (m MainModel) compileWorkflowCmd(item WorkflowItem) tea.Cmd {
+	return func() tea.Msg {
+		baseDir := filepath.Dir(m.workDir)
+		binDir := filepath.Join(baseDir, filepath.Base(DefaultBinDir))
+
+		binName := strings.TrimSuffix(filepath.Base(item.filePath), ".go")
+		binaryPath := filepath.Join(binDir, binName)
+
+		sourceInfo, err1 := os.Stat(item.filePath)
+		binaryInfo, err2 := os.Stat(binaryPath)
+		if err1 == nil && err2 == nil && binaryInfo.ModTime().After(sourceInfo.ModTime()) {
+			return WorkflowBuildFinishedMsg{
+				filePath:   item.filePath,
+				binaryPath: binaryPath,
+				err:        nil,
+			}
+		}
+
+		// Guarantee that the bin directory exists before compiling
+		if err := os.MkdirAll(binDir, 0755); err != nil {
+			return WorkflowBuildFinishedMsg{
+				filePath: item.filePath,
+				err:      fmt.Errorf("failed to create bin dir: %w", err),
+			}
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+		defer cancel()
+
+		cmd := exec.CommandContext(ctx, "go", "build", "-o", binaryPath, item.filePath)
+		var out bytes.Buffer
+		cmd.Stdout = &out
+		cmd.Stderr = &out
+
+		err := cmd.Run()
+		return WorkflowBuildFinishedMsg{
+			filePath:   item.filePath,
+			binaryPath: binaryPath,
+			buildLog:   out.String(),
+			err:        err,
+		}
+	}
+}
+
 type MainModel struct {
 	state    viewState
 	list     list.Model
@@ -56,6 +112,30 @@ type MainModel struct {
 }
 
 func NewMainModel(workDir string, items []list.Item) MainModel {
+	baseDir := filepath.Dir(workDir)
+	binDir := filepath.Join(baseDir, filepath.Base(DefaultBinDir))
+
+	for i, item := range items {
+		wItem := item.(WorkflowItem)
+		binName := strings.TrimSuffix(filepath.Base(wItem.filePath), ".go")
+		wItem.binaryPath = filepath.Join(binDir, binName)
+
+		sourceInfo, err1 := os.Stat(wItem.filePath)
+		if err1 != nil {
+			if wItem.buildStatus == BuildStatusNone {
+				wItem.buildStatus = BuildStatusCompiling
+			}
+		} else {
+			binaryInfo, err2 := os.Stat(wItem.binaryPath)
+			if err2 == nil && binaryInfo.ModTime().After(sourceInfo.ModTime()) {
+				wItem.buildStatus = BuildStatusSuccess
+			} else {
+				wItem.buildStatus = BuildStatusCompiling
+			}
+		}
+		items[i] = wItem
+	}
+
 	// Initialize list
 	l := list.New(items, list.NewDefaultDelegate(), 0, 0)
 	l.Title = "Workflows"
@@ -68,7 +148,7 @@ func NewMainModel(workDir string, items []list.Item) MainModel {
 
 	// Initialize spinner
 	s := spinner.New()
-	s.Spinner = spinner.Dot
+	s.Spinner = spinner.Line
 	s.Style = RunningStatusStyle
 
 	state := viewDashboard
@@ -86,6 +166,21 @@ func NewMainModel(workDir string, items []list.Item) MainModel {
 }
 
 func (m MainModel) Init() tea.Cmd {
+	var cmds []tea.Cmd
+	hasCompiling := false
+	for _, item := range m.list.Items() {
+		wItem := item.(WorkflowItem)
+		if wItem.buildStatus == BuildStatusCompiling {
+			hasCompiling = true
+			cmds = append(cmds, m.compileWorkflowCmd(wItem))
+		}
+	}
+	if hasCompiling {
+		cmds = append(cmds, m.spinner.Tick)
+	}
+	if len(cmds) > 0 {
+		return tea.Batch(cmds...)
+	}
 	return nil
 }
 
@@ -147,13 +242,24 @@ func (m MainModel) handleKeyMsg(msg tea.KeyMsg) (MainModel, tea.Cmd) {
 		selected := m.list.SelectedItem()
 		if selected != nil && !m.running {
 			item := selected.(WorkflowItem)
+			if item.buildStatus == BuildStatusCompiling {
+				m.logLines = []string{"[TUI] Cannot execute workflow: Compilation is still in progress."}
+				m.viewport.SetContent(strings.Join(m.logLines, "\n"))
+				return m, nil
+			}
+			if item.buildStatus == BuildStatusFailed {
+				m.logLines = []string{"[TUI] Cannot execute workflow: Compilation failed. Inspect errors in the details view."}
+				m.viewport.SetContent(strings.Join(m.logLines, "\n"))
+				return m, nil
+			}
+
 			m.activeItem = &item
 			m.logLines = []string{"[TUI] Spawning process for " + item.name + "..."}
 			m.viewport.SetContent(strings.Join(m.logLines, "\n"))
 			m.runErr = nil
 			m.running = true
 
-			m.runner = NewRunner(item.filePath)
+			m.runner = NewRunner(item.binaryPath)
 			m.runner.Start(context.Background())
 
 			return m, tea.Batch(
@@ -253,9 +359,54 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.initErr = fmt.Errorf("workspace initialized but no workflows found")
 			return m, nil
 		}
+
+		baseDir := filepath.Dir(m.workDir)
+		binDir := filepath.Join(baseDir, filepath.Base(DefaultBinDir))
+
+		var compileCmds []tea.Cmd
+		for i, item := range items {
+			wItem := item.(WorkflowItem)
+			binName := strings.TrimSuffix(filepath.Base(wItem.filePath), ".go")
+			wItem.binaryPath = filepath.Join(binDir, binName)
+
+			sourceInfo, err1 := os.Stat(wItem.filePath)
+			binaryInfo, err2 := os.Stat(wItem.binaryPath)
+			if err1 == nil && err2 == nil && binaryInfo.ModTime().After(sourceInfo.ModTime()) {
+				wItem.buildStatus = BuildStatusSuccess
+			} else {
+				wItem.buildStatus = BuildStatusCompiling
+				compileCmds = append(compileCmds, m.compileWorkflowCmd(wItem))
+			}
+			items[i] = wItem
+		}
+
 		// Populate list and transition to success view
 		m.list.SetItems(items)
 		m.state = viewInitSuccess
+
+		if len(compileCmds) > 0 {
+			compileCmds = append(compileCmds, m.spinner.Tick)
+			return m, tea.Batch(compileCmds...)
+		}
+		return m, nil
+
+	case WorkflowBuildFinishedMsg:
+		items := m.list.Items()
+		for idx, item := range items {
+			wItem := item.(WorkflowItem)
+			if wItem.filePath == msg.filePath {
+				if msg.err != nil {
+					wItem.buildStatus = BuildStatusFailed
+					wItem.buildError = msg.buildLog
+				} else {
+					wItem.buildStatus = BuildStatusSuccess
+					wItem.buildError = ""
+					wItem.binaryPath = msg.binaryPath
+				}
+				m.list.SetItem(idx, wItem)
+				break
+			}
+		}
 		return m, nil
 
 	case spinner.TickMsg:

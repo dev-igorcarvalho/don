@@ -9,15 +9,36 @@ import (
 	"github.com/charmbracelet/bubbles/list"
 )
 
+type BuildStatus int
+
+const (
+	BuildStatusNone BuildStatus = iota
+	BuildStatusCompiling
+	BuildStatusSuccess
+	BuildStatusFailed
+)
+
 // WorkflowItem implements list.Item for charmbracelet/list.
 type WorkflowItem struct {
 	name        string
 	filePath    string
+	binaryPath  string
 	description string
+	buildStatus BuildStatus
+	buildError  string
 }
 
-func (w WorkflowItem) Title() string       { return w.name }
-func (w WorkflowItem) Description() string { return w.description }
+func (w WorkflowItem) Title() string { return w.name }
+func (w WorkflowItem) Description() string {
+	switch w.buildStatus {
+	case BuildStatusCompiling:
+		return "[🔄 Compiling...] " + w.description
+	case BuildStatusFailed:
+		return "[❌ Build Failed] " + w.description
+	default:
+		return w.description
+	}
+}
 func (w WorkflowItem) FilterValue() string { return w.name }
 
 // DiscoverWorkflows reads files in the target directory and parses workflows.

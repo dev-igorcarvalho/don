@@ -5,4 +5,5 @@ const (
 	DefaultAgentsDir    = ".caporegime/agents"
 	DefaultPromptsDir   = ".caporegime/prompts"
 	DefaultSessionDir   = ".caporegime/session"
+	DefaultBinDir       = ".caporegime/bin"
 )

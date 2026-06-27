@@ -12,7 +12,13 @@ import (
 func TestModelTransitions(t *testing.T) {
 	// Prepare mock items
 	items := []list.Item{
-		WorkflowItem{name: "Hello Workflow", filePath: "hello.go", description: "Hello"},
+		WorkflowItem{
+			name:        "Hello Workflow",
+			filePath:    "hello.go",
+			binaryPath:  "hello",
+			description: "Hello",
+			buildStatus: BuildStatusSuccess,
+		},
 	}
 
 	model := NewMainModel(".", items)
@@ -84,8 +90,8 @@ func TestWorkspaceInitTransitions(t *testing.T) {
 	if m.state != viewInitSuccess {
 		t.Errorf("expected state to transition to viewInitSuccess, got %v", m.state)
 	}
-	if cmd != nil {
-		t.Errorf("expected cmd to be nil, got %v", cmd)
+	if cmd == nil {
+		t.Error("expected cmd to be returned for background compilation dispatch")
 	}
 
 	// Send enter key to transition from viewInitSuccess to viewDashboard
