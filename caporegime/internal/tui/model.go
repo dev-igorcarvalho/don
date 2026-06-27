@@ -106,6 +106,9 @@ type MainModel struct {
 	runErr     error
 	activeItem *WorkflowItem
 
+	// Auto-run State
+	autoRunFilePath string
+
 	// Initialization State
 	initializing bool
 	initErr      error
@@ -242,6 +245,28 @@ func (m MainModel) handleKeyMsg(msg tea.KeyMsg) (MainModel, tea.Cmd) {
 		selected := m.list.SelectedItem()
 		if selected != nil && !m.running {
 			item := selected.(WorkflowItem)
+
+			// Check if source file has changed relative to binary
+			sourceInfo, err1 := os.Stat(item.filePath)
+			binaryInfo, err2 := os.Stat(item.binaryPath)
+			needsCompile := err1 != nil || err2 != nil || sourceInfo.ModTime().After(binaryInfo.ModTime())
+
+			if needsCompile {
+				item.buildStatus = BuildStatusCompiling
+				m.list.SetItem(m.list.Index(), item)
+				m.autoRunFilePath = item.filePath
+				m.activeItem = &item
+				m.logLines = []string{"[TUI] Source file changed. Recompiling before running..."}
+				m.viewport.SetContent(strings.Join(m.logLines, "\n"))
+				m.runErr = nil
+				m.running = true
+
+				return m, tea.Batch(
+					m.spinner.Tick,
+					m.compileWorkflowCmd(item),
+				)
+			}
+
 			if item.buildStatus == BuildStatusCompiling {
 				m.logLines = []string{"[TUI] Cannot execute workflow: Compilation is still in progress."}
 				m.viewport.SetContent(strings.Join(m.logLines, "\n"))
@@ -324,7 +349,7 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// Runner output stream messages
 	case LogLineMsg:
-		if m.running {
+		if m.running && m.runner != nil {
 			m.logLines = append(m.logLines, string(msg))
 			m.viewport.SetContent(strings.Join(m.logLines, "\n"))
 			m.viewport.GotoBottom()
@@ -392,6 +417,7 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case WorkflowBuildFinishedMsg:
 		items := m.list.Items()
+		var updatedItem *WorkflowItem
 		for idx, item := range items {
 			wItem := item.(WorkflowItem)
 			if wItem.filePath == msg.filePath {
@@ -404,7 +430,40 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					wItem.binaryPath = msg.binaryPath
 				}
 				m.list.SetItem(idx, wItem)
+				updatedItem = &wItem
 				break
+			}
+		}
+
+		if m.autoRunFilePath == msg.filePath {
+			m.autoRunFilePath = ""
+			if msg.err != nil {
+				m.running = false
+				m.runErr = msg.err
+				m.logLines = append(m.logLines, "[TUI] Compilation failed:")
+				for _, line := range strings.Split(msg.buildLog, "\n") {
+					if strings.TrimSpace(line) != "" {
+						m.logLines = append(m.logLines, line)
+					}
+				}
+				m.viewport.SetContent(strings.Join(m.logLines, "\n"))
+				m.viewport.GotoBottom()
+				return m, nil
+			}
+
+			if updatedItem != nil {
+				m.activeItem = updatedItem
+				m.logLines = append(m.logLines, "[TUI] Compilation successful. Spawning process...")
+				m.viewport.SetContent(strings.Join(m.logLines, "\n"))
+				m.viewport.GotoBottom()
+
+				m.runner = NewRunner(updatedItem.binaryPath)
+				m.runner.Start(context.Background())
+
+				return m, tea.Batch(
+					m.spinner.Tick,
+					WaitForActivity(m.runner.Channel()),
+				)
 			}
 		}
 		return m, nil

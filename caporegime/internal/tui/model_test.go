@@ -1,27 +1,55 @@
 package tui
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
 func TestModelTransitions(t *testing.T) {
+	tempDir := t.TempDir()
+
+	filePath := filepath.Join(tempDir, "hello.go")
+	binDir := filepath.Join(filepath.Dir(tempDir), "bin")
+	binaryPath := filepath.Join(binDir, "hello")
+
+	err := os.MkdirAll(binDir, 0755)
+	if err != nil {
+		t.Fatalf("failed to create bin dir: %v", err)
+	}
+
+	err = os.WriteFile(filePath, []byte("// name: Hello Workflow\n// description: Hello"), 0644)
+	if err != nil {
+		t.Fatalf("failed to write source file: %v", err)
+	}
+	err = os.WriteFile(binaryPath, []byte("compiled binary"), 0755)
+	if err != nil {
+		t.Fatalf("failed to write binary file: %v", err)
+	}
+
+	// Make binary newer than source so compilation is skipped
+	now := time.Now()
+	_ = os.Chtimes(filePath, now.Add(-10*time.Second), now.Add(-10*time.Second))
+	_ = os.Chtimes(binaryPath, now, now)
+
 	// Prepare mock items
 	items := []list.Item{
 		WorkflowItem{
 			name:        "Hello Workflow",
-			filePath:    "hello.go",
-			binaryPath:  "hello",
+			filePath:    filePath,
+			binaryPath:  binaryPath,
 			description: "Hello",
 			buildStatus: BuildStatusSuccess,
 		},
 	}
 
-	model := NewMainModel(".", items)
+	model := NewMainModel(tempDir, items)
 
 	// Verify initial state
 	if model.running {
@@ -64,6 +92,138 @@ func TestModelTransitions(t *testing.T) {
 	m = newModel.(MainModel)
 	if len(m.logLines) != 0 {
 		t.Error("expected logs to be cleared after pressing esc")
+	}
+}
+
+func TestModelTransitionsNeedsCompile(t *testing.T) {
+	tempDir := t.TempDir()
+
+	filePath := filepath.Join(tempDir, "hello.go")
+	binDir := filepath.Join(filepath.Dir(tempDir), "bin")
+	binaryPath := filepath.Join(binDir, "hello")
+
+	err := os.MkdirAll(binDir, 0755)
+	if err != nil {
+		t.Fatalf("failed to create bin dir: %v", err)
+	}
+
+	err = os.WriteFile(filePath, []byte("// name: Hello Workflow\n// description: Hello"), 0644)
+	if err != nil {
+		t.Fatalf("failed to write source file: %v", err)
+	}
+	err = os.WriteFile(binaryPath, []byte("compiled binary"), 0755)
+	if err != nil {
+		t.Fatalf("failed to write binary file: %v", err)
+	}
+
+	// Make source newer than binary so compilation is required
+	now := time.Now()
+	_ = os.Chtimes(filePath, now, now)
+	_ = os.Chtimes(binaryPath, now.Add(-10*time.Second), now.Add(-10*time.Second))
+
+	// Prepare mock items
+	items := []list.Item{
+		WorkflowItem{
+			name:        "Hello Workflow",
+			filePath:    filePath,
+			binaryPath:  binaryPath,
+			description: "Hello",
+			buildStatus: BuildStatusSuccess,
+		},
+	}
+
+	model := NewMainModel(tempDir, items)
+
+	// Send enter key message -> should trigger compilation
+	newModel, cmd := model.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m := newModel.(MainModel)
+
+	if !m.running {
+		t.Error("expected model to start running (transition to compiling view) after pressing enter")
+	}
+	if m.autoRunFilePath != filePath {
+		t.Errorf("expected autoRunFilePath to be %s, got %s", filePath, m.autoRunFilePath)
+	}
+	if cmd == nil {
+		t.Error("expected compilation command to be returned")
+	}
+
+	// Send WorkflowBuildFinishedMsg (success)
+	finishedMsg := WorkflowBuildFinishedMsg{
+		filePath:   filePath,
+		binaryPath: binaryPath,
+		err:        nil,
+	}
+	newModel, runCmd := m.Update(finishedMsg)
+	m = newModel.(MainModel)
+
+	if !m.running {
+		t.Error("expected model to remain running to spawn process")
+	}
+	if m.autoRunFilePath != "" {
+		t.Error("expected autoRunFilePath to be cleared after compilation finished")
+	}
+	if runCmd == nil {
+		t.Error("expected runner check activity command to be returned")
+	}
+
+	// Mock incoming activity to ensure runner runs (simulate process exit)
+	newModel, _ = m.Update(ProcessFinishedMsg{Err: nil})
+	m = newModel.(MainModel)
+	if m.running {
+		t.Error("expected running to be false after ProcessFinishedMsg")
+	}
+}
+
+func TestModelTransitionsCompileFailure(t *testing.T) {
+	tempDir := t.TempDir()
+
+	filePath := filepath.Join(tempDir, "hello.go")
+	binaryPath := filepath.Join(tempDir, "hello")
+
+	err := os.WriteFile(filePath, []byte("// name: Hello Workflow\n// description: Hello"), 0644)
+	if err != nil {
+		t.Fatalf("failed to write source file: %v", err)
+	}
+
+	items := []list.Item{
+		WorkflowItem{
+			name:        "Hello Workflow",
+			filePath:    filePath,
+			binaryPath:  binaryPath,
+			description: "Hello",
+			buildStatus: BuildStatusSuccess,
+		},
+	}
+
+	model := NewMainModel(tempDir, items)
+
+	newModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m := newModel.(MainModel)
+
+	// Send failed compilation message
+	finishedMsg := WorkflowBuildFinishedMsg{
+		filePath: filePath,
+		buildLog: "syntax error on line 42",
+		err:      fmt.Errorf("exit status 2"),
+	}
+	newModel, cmd := m.Update(finishedMsg)
+	m = newModel.(MainModel)
+
+	if m.running {
+		t.Error("expected running to be false after failed compilation")
+	}
+	if m.autoRunFilePath != "" {
+		t.Error("expected autoRunFilePath to be cleared")
+	}
+	if cmd != nil {
+		t.Error("expected command to be nil after compile failure")
+	}
+
+	// Check that log contains the compilation error
+	logStr := strings.Join(m.logLines, "\n")
+	if !strings.Contains(logStr, "syntax error on line 42") {
+		t.Errorf("expected logs to contain syntax error, got: %s", logStr)
 	}
 }
 
