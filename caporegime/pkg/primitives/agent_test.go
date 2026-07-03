@@ -1,14 +1,17 @@
 package primitives
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/dev-igorcarvalho/don/caporegime/pkg/utils"
@@ -231,29 +234,36 @@ func TestAgent_resolvePrompt(t *testing.T) {
 	tests := []struct {
 		name    string
 		prompt  string
+		system  string
 		want    string
 		wantErr bool
 	}{
 		{
-			name:   "plain prompt",
+			name:   "plain prompt without system returns content unchanged",
 			prompt: "direct prompt",
-			want:   fmt.Sprintf("%s \n %s", AgentResponseFormatEnforcerXml, "direct prompt"),
+			want:   "direct prompt",
 		},
 		{
-			name:   "file prompt",
+			name:   "file prompt without system returns file content unchanged",
 			prompt: tmpFile.Name(),
-			want:   fmt.Sprintf("%s \n %s", AgentResponseFormatEnforcerXml, content),
+			want:   content,
 		},
 		{
 			name:    "missing file prompt",
 			prompt:  "nonexistent.md",
 			wantErr: true,
 		},
+		{
+			name:   "plain prompt with system prefixes system prompt",
+			prompt: "direct prompt",
+			system: "you are a bot",
+			want:   fmt.Sprintf("%s \n %s", "you are a bot", "direct prompt"),
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			a := &Agent[FoundationModelResponse]{Prompt: tt.prompt}
+			a := &Agent[FoundationModelResponse]{Prompt: tt.prompt, System: tt.system}
 			got, err := a.resolvePrompt()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("resolvePrompt() error = %v, wantErr %v", err, tt.wantErr)
@@ -378,7 +388,7 @@ func TestAgent_execute(t *testing.T) {
 				System:   "you are a bot",
 				Prompt:   "hello",
 			},
-			expectedArgs: []string{"base1", fmt.Sprintf("%s \n %s", AgentResponseFormatEnforcerXml, "hello"), "--model", "gpt-4", "--system-prompt", "you are a bot"},
+			expectedArgs: []string{"base1", fmt.Sprintf("%s \n %s", "you are a bot", "hello"), "--model", "gpt-4", "--system-prompt", "you are a bot"},
 			output:       "success output",
 			exitCode:     0,
 			wantErr:      false,
@@ -564,7 +574,7 @@ func TestAgent_Run(t *testing.T) {
 				ctx = context.WithValue(ctx, artifactDirKey{}, "/nonexistent-dir-for-test")
 			}
 
-			got, err := tt.agent.Run(ctx)
+			got, err := tt.agent.Run(ctx, nil)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Run() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -605,7 +615,7 @@ func TestAgent_Run_Persist(t *testing.T) {
 	}
 
 	ctx := context.WithValue(context.Background(), artifactDirKey{}, tmpDir)
-	_, err = a.Run(ctx)
+	_, err = a.Run(ctx, nil)
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
@@ -674,11 +684,370 @@ func TestAgent_NilReceiver(t *testing.T) {
 		t.Errorf("expected 'agent is nil' error, got %v", err)
 	}
 
-	_, err = a.Run(context.Background())
+	_, err = a.Run(context.Background(), nil)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
 	if err.Error() != "agent is nil" {
 		t.Errorf("expected 'agent is nil' error, got %v", err)
+	}
+}
+
+func TestAgent_logFailure(t *testing.T) {
+	a := &Agent[FoundationModelResponse]{Name: "test-agent"}
+
+	var buf bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&buf, nil))
+
+	origErr := errors.New("boom")
+	got := a.logFailure(logger, "something failed", origErr)
+
+	if !errors.Is(got, origErr) {
+		t.Errorf("logFailure() returned %v, want %v", got, origErr)
+	}
+
+	out := buf.String()
+	for _, want := range []string{"something failed", "test-agent", "boom"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("logFailure() log output = %q, missing %q", out, want)
+		}
+	}
+}
+
+func TestAgent_runBefore(t *testing.T) {
+	tests := []struct {
+		name    string
+		before  func(ctx context.Context) error
+		wantErr string
+	}{
+		{
+			name:   "nil hook is a no-op",
+			before: nil,
+		},
+		{
+			name: "hook succeeds",
+			before: func(ctx context.Context) error {
+				return nil
+			},
+		},
+		{
+			name: "hook fails is wrapped",
+			before: func(ctx context.Context) error {
+				return errors.New("boom")
+			},
+			wantErr: "agentX: before: boom",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := &Agent[FoundationModelResponse]{Name: "agentX", Before: tt.before}
+			err := a.runBefore(context.Background())
+			if tt.wantErr == "" {
+				if err != nil {
+					t.Errorf("runBefore() error = %v, want nil", err)
+				}
+				return
+			}
+			if err == nil || err.Error() != tt.wantErr {
+				t.Errorf("runBefore() error = %v, want %q", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestAgent_runAfter(t *testing.T) {
+	tests := []struct {
+		name    string
+		after   func(ctx context.Context) error
+		wantErr string
+	}{
+		{
+			name:  "nil hook is a no-op",
+			after: nil,
+		},
+		{
+			name: "hook succeeds",
+			after: func(ctx context.Context) error {
+				return nil
+			},
+		},
+		{
+			name: "hook fails is wrapped",
+			after: func(ctx context.Context) error {
+				return errors.New("boom")
+			},
+			wantErr: "agentY: after: boom",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := &Agent[FoundationModelResponse]{Name: "agentY", After: tt.after}
+			err := a.runAfter(context.Background())
+			if tt.wantErr == "" {
+				if err != nil {
+					t.Errorf("runAfter() error = %v, want nil", err)
+				}
+				return
+			}
+			if err == nil || err.Error() != tt.wantErr {
+				t.Errorf("runAfter() error = %v, want %q", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestAgent_wrapExecError(t *testing.T) {
+	a := &Agent[FoundationModelResponse]{Name: "myagent"}
+
+	t.Run("process exit error includes exit code and stderr", func(t *testing.T) {
+		cmd := exec.Command("sh", "-c", "echo boom 1>&2; exit 7")
+		_, execErr := cmd.Output()
+		if execErr == nil {
+			t.Fatal("expected command to fail")
+		}
+
+		got := a.wrapExecError("sh", execErr)
+		want := "myagent: sh exited 7: boom\n"
+		if got.Error() != want {
+			t.Errorf("wrapExecError() = %q, want %q", got.Error(), want)
+		}
+	})
+
+	t.Run("non exit error is wrapped generically", func(t *testing.T) {
+		origErr := errors.New("lookup failed")
+		got := a.wrapExecError("missingbinary", origErr)
+		want := "myagent: exec: lookup failed"
+		if got.Error() != want {
+			t.Errorf("wrapExecError() = %q, want %q", got.Error(), want)
+		}
+		if !errors.Is(got, origErr) {
+			t.Errorf("wrapExecError() = %v, want wrapping %v", got, origErr)
+		}
+	})
+}
+
+func TestCheckFailure(t *testing.T) {
+	t.Run("implements FailureChecker with failure", func(t *testing.T) {
+		r := testResultWithFailure{Status: "error", Err: "bad"}
+		err := checkFailure(&r)
+		if err == nil || err.Error() != "bad" {
+			t.Errorf("checkFailure() = %v, want error 'bad'", err)
+		}
+	})
+
+	t.Run("implements FailureChecker without failure", func(t *testing.T) {
+		r := testResultWithFailure{Status: "ok"}
+		if err := checkFailure(&r); err != nil {
+			t.Errorf("checkFailure() = %v, want nil", err)
+		}
+	})
+
+	t.Run("does not implement FailureChecker", func(t *testing.T) {
+		r := testResult{Status: "ok"}
+		if err := checkFailure(&r); err != nil {
+			t.Errorf("checkFailure() = %v, want nil", err)
+		}
+	})
+}
+
+func TestAgent_resolveArtifactTag(t *testing.T) {
+	tests := []struct {
+		name string
+		tag  string
+		want string
+	}{
+		{
+			name: "empty tag falls back to default",
+			tag:  "",
+			want: defaultArtifactTag,
+		},
+		{
+			name: "custom tag is used as-is",
+			tag:  "{{custom_artifact}}",
+			want: "{{custom_artifact}}",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := &Agent[FoundationModelResponse]{ArtifactTag: tt.tag}
+			if got := a.resolveArtifactTag(); got != tt.want {
+				t.Errorf("resolveArtifactTag() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestAgent_resolveArgs(t *testing.T) {
+	tests := []struct {
+		name     string
+		agent    *Agent[FoundationModelResponse]
+		baseArgs []string
+		want     []string
+	}{
+		{
+			name:     "no model no system leaves base args untouched",
+			agent:    &Agent[FoundationModelResponse]{},
+			baseArgs: []string{"base"},
+			want:     []string{"base"},
+		},
+		{
+			name:     "model only appends --model flag",
+			agent:    &Agent[FoundationModelResponse]{Model: "m1"},
+			baseArgs: []string{"base"},
+			want:     []string{"base", "--model", "m1"},
+		},
+		{
+			name:     "system only appends --system-prompt flag",
+			agent:    &Agent[FoundationModelResponse]{System: "sys"},
+			baseArgs: []string{"base"},
+			want:     []string{"base", "--system-prompt", "sys"},
+		},
+		{
+			name:     "model and system appends both flags in order",
+			agent:    &Agent[FoundationModelResponse]{Model: "m1", System: "sys"},
+			baseArgs: []string{"base"},
+			want:     []string{"base", "--model", "m1", "--system-prompt", "sys"},
+		},
+		{
+			name:     "nil base args with model set",
+			agent:    &Agent[FoundationModelResponse]{Model: "m1"},
+			baseArgs: nil,
+			want:     []string{"--model", "m1"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.agent.resolveArgs(tt.baseArgs)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("resolveArgs() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestAgent_resolveArgs_DoesNotMutateCallerSlice(t *testing.T) {
+	base := []string{"base"}
+	a := &Agent[FoundationModelResponse]{Model: "m1", System: "sys"}
+
+	got := a.resolveArgs(base)
+
+	if len(base) != 1 || base[0] != "base" {
+		t.Errorf("resolveArgs() mutated caller's slice, got base = %v", base)
+	}
+	if len(got) != 5 {
+		t.Errorf("resolveArgs() = %v, want 5 elements", got)
+	}
+}
+
+func TestAgent_persist(t *testing.T) {
+	t.Run("success writes artifact and returns path", func(t *testing.T) {
+		tmpDir, err := os.MkdirTemp("", "agent_persist_direct")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer os.RemoveAll(tmpDir)
+
+		a := &Agent[testResult]{Name: "persist-agent"}
+		ctx := context.WithValue(context.Background(), artifactDirKey{}, tmpDir)
+
+		path, err := a.persist(ctx, testResult{Status: "ok"})
+		if err != nil {
+			t.Fatalf("persist() error = %v", err)
+		}
+		if path == "" {
+			t.Fatal("persist() returned empty path")
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("failed to read persisted artifact: %v", err)
+		}
+		if string(data) != "ok" {
+			t.Errorf("persisted data = %q, want %q", string(data), "ok")
+		}
+	})
+
+	t.Run("propagates PersistArtifact error", func(t *testing.T) {
+		a := &Agent[testResult]{Name: "persist-agent"}
+		ctx := context.WithValue(context.Background(), artifactDirKey{}, "/nonexistent-dir-for-test")
+
+		_, err := a.persist(ctx, testResult{Status: "ok"})
+		if err == nil {
+			t.Fatal("persist() expected error, got nil")
+		}
+	})
+
+	t.Run("no artifact dir configured returns empty path and no error", func(t *testing.T) {
+		a := &Agent[testResult]{Name: "persist-agent"}
+
+		path, err := a.persist(context.Background(), testResult{Status: "ok"})
+		if err != nil {
+			t.Fatalf("persist() error = %v", err)
+		}
+		if path != "" {
+			t.Errorf("persist() path = %q, want empty", path)
+		}
+	})
+}
+
+func TestAgent_resolvePrompt_WithArtifactPath(t *testing.T) {
+	tests := []struct {
+		name        string
+		prompt      string
+		artifactTag string
+		want        string
+	}{
+		{
+			name:   "default tag is stripped",
+			prompt: fmt.Sprintf("prefix %s suffix", defaultArtifactTag),
+			want:   "prefix  suffix",
+		},
+		{
+			name:        "custom tag is stripped",
+			prompt:      "before <<TAG>> after",
+			artifactTag: "<<TAG>>",
+			want:        "before  after",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			artifactPath := "/some/artifact/path.md"
+			a := &Agent[FoundationModelResponse]{Prompt: tt.prompt, ArtifactTag: tt.artifactTag}
+			a.receivedArtifactPath = &artifactPath
+
+			got, err := a.resolvePrompt()
+			if err == nil || err.Error() != "not implemented" {
+				t.Fatalf("resolvePrompt() error = %v, want 'not implemented'", err)
+			}
+			if got != tt.want {
+				t.Errorf("resolvePrompt() got = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestAgent_Run_WithArtifactPath(t *testing.T) {
+	origExec := execCommandContext
+	defer func() { execCommandContext = origExec }()
+	execCommandContext = mockExec(`{"status": "ok"}`, 0)
+
+	a := Agent[testResult]{
+		Name:     "test",
+		Provider: mockProvider{cmd: "test"},
+		Model:    "model",
+		Prompt:   "prompt with an artifact tag",
+	}
+	artifactPath := "/tmp/some-artifact.md"
+
+	_, err := a.Run(context.Background(), &artifactPath)
+	if err == nil {
+		t.Fatal("Run() expected error because artifact path resolution is not implemented")
+	}
+	if !strings.Contains(err.Error(), "not implemented") {
+		t.Errorf("Run() error = %v, want error containing 'not implemented'", err)
 	}
 }

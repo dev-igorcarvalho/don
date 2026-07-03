@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"strings"
@@ -14,6 +15,8 @@ import (
 // execCommandContext is a package-level variable wrapping exec.CommandContext.
 // It is used for mocking command execution during testing.
 var execCommandContext = exec.CommandContext
+
+const defaultArtifactTag = "{{artifact}}"
 
 // AgentProvider defines the contract for interacting with LLM CLI providers.
 // It resolves the necessary command line to run the provider and parses its output.
@@ -63,7 +66,9 @@ type Agent[T FoundationModelResult] struct {
 	// Before is an optional hook executed prior to running the prompt.
 	Before func(ctx context.Context) error
 	// After is an optional hook executed after the prompt is run and before the results are parsed.
-	After func(ctx context.Context) error
+	After                func(ctx context.Context) error
+	receivedArtifactPath *string
+	ArtifactTag          string
 }
 
 // isValid verifies that all required fields on the agent are present and valid.
@@ -91,7 +96,7 @@ func (a *Agent[T]) isValid() error {
 // running the prompt via the provider, executing the After hook, parsing the output,
 // and persisting the parsed result.
 // It returns the AgentResponse containing the persisted path and model response, or an error if any stage fails.
-func (a *Agent[T]) Run(ctx context.Context) (*AgentResponse, error) {
+func (a *Agent[T]) Run(ctx context.Context, artifactPath *string) (*AgentResponse, error) {
 	if err := a.isValid(); err != nil {
 		return nil, err
 	}
@@ -100,26 +105,31 @@ func (a *Agent[T]) Run(ctx context.Context) (*AgentResponse, error) {
 	if err := a.runBefore(ctx); err != nil {
 		return nil, err
 	}
+	a.receivedArtifactPath = artifactPath
 	out, err := a.execute(ctx)
 	if err != nil {
-		log.Error("agent failed", "name", a.Name, "error", err)
-		return nil, err
+		return nil, a.logFailure(log, "agent failed", err)
 	}
-	if err := a.runAfter(ctx); err != nil {
+	if err = a.runAfter(ctx); err != nil {
 		return nil, err
 	}
 	result, err := a.parseResult(out)
 	if err != nil {
-		log.Error("agent failed", "name", a.Name, "error", err)
-		return nil, err
+		return nil, a.logFailure(log, "agent failed", err)
 	}
 	path, err := a.persist(ctx, *result)
 	if err != nil {
-		log.Error("failed to persist agent output", "name", a.Name, "error", err)
-		return nil, err
+		return nil, a.logFailure(log, "failed to persist agent output", err)
 	}
 	log.Info("agent done", "name", a.Name)
 	return &AgentResponse{ArtifactPath: path, ModelResponse: *result}, nil
+}
+
+// logFailure logs an agent-scoped error and returns it unchanged, so call sites can report
+// and propagate in a single expression: `return nil, a.logFailure(log, "...", err)`.
+func (a *Agent[T]) logFailure(log *slog.Logger, msg string, err error) error {
+	log.Error(msg, "name", a.Name, "error", err)
+	return err
 }
 
 // runBefore executes the Before hook of the agent if it is defined.
@@ -156,12 +166,19 @@ func (a *Agent[T]) execute(ctx context.Context) ([]byte, error) {
 	providerCmd, providerArgs := a.Provider.ResolveProviderCmdLine(prompt)
 	out, err := execCommandContext(ctx, providerCmd, a.resolveArgs(providerArgs)...).Output()
 	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			return nil, fmt.Errorf("%s: %s exited %d: %s", a.Name, providerCmd, exitErr.ExitCode(), string(exitErr.Stderr))
-		}
-		return nil, fmt.Errorf("%s: exec: %w", a.Name, err)
+		return nil, a.wrapExecError(providerCmd, err)
 	}
 	return out, nil
+}
+
+// wrapExecError annotates a provider command failure with the agent name, and, for process
+// exits, the exit code and captured stderr.
+func (a *Agent[T]) wrapExecError(providerCmd string, err error) error {
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) {
+		return fmt.Errorf("%s: %s exited %d: %s", a.Name, providerCmd, exitErr.ExitCode(), string(exitErr.Stderr))
+	}
+	return fmt.Errorf("%s: exec: %w", a.Name, err)
 }
 
 // parseResult deserializes the raw command output bytes into the target foundation model result type.
@@ -172,14 +189,18 @@ func (a *Agent[T]) parseResult(out []byte) (*T, error) {
 	if err := a.Provider.Parse(out, &r); err != nil {
 		return nil, fmt.Errorf("%s: parseDefaultResponse: %w\nraw output: %s", a.Name, err, string(out))
 	}
-
-	// If the result type implements FailureChecker, check for logical errors.
-	if checker, ok := any(&r).(FailureChecker); ok {
-		if err := checker.Failure(); err != nil {
-			return nil, fmt.Errorf("%s: %w", a.Name, err)
-		}
+	if err := checkFailure(&r); err != nil {
+		return nil, fmt.Errorf("%s: %w", a.Name, err)
 	}
 	return &r, nil
+}
+
+// checkFailure reports the semantic failure of r if it implements FailureChecker, or nil otherwise.
+func checkFailure[T any](r *T) error {
+	if checker, ok := any(r).(FailureChecker); ok {
+		return checker.Failure()
+	}
+	return nil
 }
 
 // readPromptContent reads the raw prompt string, either directly from the Prompt field or from a file if the field ends in .md.
@@ -202,7 +223,22 @@ func (a *Agent[T]) resolvePrompt() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("%s \n %s", AgentResponseFormatEnforcerXml, content), nil
+	if a.receivedArtifactPath != nil {
+		result := strings.Replace(content, a.resolveArtifactTag(), "", 1)
+		return result, errors.New("not implemented")
+	}
+	if a.System != "" {
+		return fmt.Sprintf("%s \n %s", a.System, content), nil
+	}
+	return content, nil
+}
+
+// resolveArtifactTag returns the configured artifact placeholder tag, falling back to the default.
+func (a *Agent[T]) resolveArtifactTag() string {
+	if a.ArtifactTag != "" {
+		return a.ArtifactTag
+	}
+	return defaultArtifactTag
 }
 
 // resolveArgs appends the optional model and system prompt flags to the provider's base command arguments.
@@ -220,8 +256,8 @@ func (a *Agent[T]) resolveArgs(baseArgs []string) []string {
 
 // persist saves the model response as an artifact via the response's PersistArtifact method.
 // It returns the absolute path of the persisted artifact or an error if persistence fails.
-func (a *Agent[T]) persist(ctx context.Context, out T) (string, error) {
-	path, err := out.PersistArtifact(ctx, a.Name)
+func (a *Agent[T]) persist(ctx context.Context, result T) (string, error) {
+	path, err := result.PersistArtifact(ctx, a.Name)
 	if err != nil {
 		return "", err
 	}
