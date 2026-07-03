@@ -48,23 +48,6 @@ func (r FoundationModelResponse) PersistArtifact(ctx context.Context, artifactNa
 	return PersistArtifactToFile(ctx, artifactName, r.Result())
 }
 
-// PersistArtifactToFile writes the artifact content to a file in the artifact directory specified in the context.
-// It returns the absolute path of the written file and any file system error encountered.
-// If the artifact directory is not configured in the context, it returns an empty path and a nil error.
-func PersistArtifactToFile(ctx context.Context, artifactName, content string) (string, error) {
-	dir, ok := ArtifactDir(ctx)
-	if !ok || dir == "" {
-		return "", nil
-	}
-	filename := fmt.Sprintf("%s.md", utils.SanitizeName(artifactName))
-	path := filepath.Join(dir, filename)
-	Logger(ctx).Info("persisting agent artifact", "name", artifactName, "path", path)
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
-		return "", fmt.Errorf("persist agent artifact: %w", err)
-	}
-	return path, nil
-}
-
 // ClaudeResult represents the detailed metadata, performance metrics, and output from a Claude execution.
 type ClaudeResult struct {
 	// Type specifies the execution type of the Claude process.
@@ -96,60 +79,9 @@ type ClaudeResult struct {
 	// TotalCostUsd is the total cost of the execution in USD.
 	TotalCostUsd float64 `json:"total_cost_usd"`
 	// Usage contains token consumption statistics for the execution.
-	Usage struct {
-		// InputTokens is the number of input tokens consumed.
-		InputTokens int `json:"input_tokens"`
-		// CacheCreationInputTokens is the number of input tokens written to cache.
-		CacheCreationInputTokens int `json:"cache_creation_input_tokens"`
-		// CacheReadInputTokens is the number of cached input tokens read.
-		CacheReadInputTokens int `json:"cache_read_input_tokens"`
-		// OutputTokens is the number of output tokens generated.
-		OutputTokens int `json:"output_tokens"`
-		// ServerToolUse tracks web requests made by the model's server tools.
-		ServerToolUse struct {
-			// WebSearchRequests is the count of web searches executed.
-			WebSearchRequests int `json:"web_search_requests"`
-			// WebFetchRequests is the count of web fetches executed.
-			WebFetchRequests int `json:"web_fetch_requests"`
-		} `json:"server_tool_use"`
-		// ServiceTier is the pricing/service tier used.
-		ServiceTier string `json:"service_tier"`
-		// CacheCreation tracks cache write details.
-		CacheCreation struct {
-			// Ephemeral1HInputTokens is the number of ephemeral 1-hour cached tokens created.
-			Ephemeral1HInputTokens int `json:"ephemeral_1h_input_tokens"`
-			// Ephemeral5MInputTokens is the number of ephemeral 5-minute cached tokens created.
-			Ephemeral5MInputTokens int `json:"ephemeral_5m_input_tokens"`
-		} `json:"cache_creation"`
-		// InferenceGeo is the geographical region where inference was processed.
-		InferenceGeo string `json:"inference_geo"`
-		// Iterations holds details about agent execution iterations.
-		Iterations []interface{} `json:"iterations"`
-		// Speed is the relative execution speed tier or mode.
-		Speed string `json:"speed"`
-	} `json:"usage"`
+	Usage ClaudeUsage `json:"usage"`
 	// ModelUsage tracks specific model usage and cost details.
-	ModelUsage struct {
-		// ClaudeSonnet46 tracks input, output, cache tokens and costs specific to Claude Sonnet 4.6.
-		ClaudeSonnet46 struct {
-			// InputTokens is the number of input tokens consumed.
-			InputTokens int `json:"inputTokens"`
-			// OutputTokens is the number of output tokens generated.
-			OutputTokens int `json:"outputTokens"`
-			// CacheReadInputTokens is the number of cache read tokens.
-			CacheReadInputTokens int `json:"cacheReadInputTokens"`
-			// CacheCreationInputTokens is the number of cache creation tokens.
-			CacheCreationInputTokens int `json:"cacheCreationInputTokens"`
-			// WebSearchRequests is the count of web search requests.
-			WebSearchRequests int `json:"webSearchRequests"`
-			// CostUSD is the cost in USD.
-			CostUSD float64 `json:"costUSD"`
-			// ContextWindow is the size of the context window.
-			ContextWindow int `json:"contextWindow"`
-			// MaxOutputTokens is the maximum output tokens limit.
-			MaxOutputTokens int `json:"maxOutputTokens"`
-		} `json:"claude-sonnet-4-6"`
-	} `json:"modelUsage"`
+	ModelUsage ClaudeModelUsage `json:"modelUsage"`
 	// PermissionDenials logs any user permission denials during the execution.
 	PermissionDenials []interface{} `json:"permission_denials"`
 	// TerminalReason explains why the execution terminated.
@@ -158,6 +90,72 @@ type ClaudeResult struct {
 	FastModeState string `json:"fast_mode_state"`
 	// Uuid is a unique identifier for this result entry.
 	Uuid string `json:"uuid"`
+}
+
+// ClaudeUsage holds token consumption statistics for a Claude execution.
+type ClaudeUsage struct {
+	// InputTokens is the number of input tokens consumed.
+	InputTokens int `json:"input_tokens"`
+	// CacheCreationInputTokens is the number of input tokens written to cache.
+	CacheCreationInputTokens int `json:"cache_creation_input_tokens"`
+	// CacheReadInputTokens is the number of cached input tokens read.
+	CacheReadInputTokens int `json:"cache_read_input_tokens"`
+	// OutputTokens is the number of output tokens generated.
+	OutputTokens int `json:"output_tokens"`
+	// ServerToolUse tracks web requests made by the model's server tools.
+	ServerToolUse ClaudeServerToolUse `json:"server_tool_use"`
+	// ServiceTier is the pricing/service tier used.
+	ServiceTier string `json:"service_tier"`
+	// CacheCreation tracks cache write details.
+	CacheCreation ClaudeCacheCreation `json:"cache_creation"`
+	// InferenceGeo is the geographical region where inference was processed.
+	InferenceGeo string `json:"inference_geo"`
+	// Iterations holds details about agent execution iterations.
+	Iterations []interface{} `json:"iterations"`
+	// Speed is the relative execution speed tier or mode.
+	Speed string `json:"speed"`
+}
+
+// ClaudeServerToolUse tracks web requests made by the model's server tools.
+type ClaudeServerToolUse struct {
+	// WebSearchRequests is the count of web searches executed.
+	WebSearchRequests int `json:"web_search_requests"`
+	// WebFetchRequests is the count of web fetches executed.
+	WebFetchRequests int `json:"web_fetch_requests"`
+}
+
+// ClaudeCacheCreation tracks cache write details for a Claude execution.
+type ClaudeCacheCreation struct {
+	// Ephemeral1HInputTokens is the number of ephemeral 1-hour cached tokens created.
+	Ephemeral1HInputTokens int `json:"ephemeral_1h_input_tokens"`
+	// Ephemeral5MInputTokens is the number of ephemeral 5-minute cached tokens created.
+	Ephemeral5MInputTokens int `json:"ephemeral_5m_input_tokens"`
+}
+
+// ClaudeModelUsage tracks specific model usage and cost details for a Claude execution.
+type ClaudeModelUsage struct {
+	// ClaudeSonnet46 tracks input, output, cache tokens and costs specific to Claude Sonnet 4.6.
+	ClaudeSonnet46 ClaudeSonnet46Usage `json:"claude-sonnet-4-6"`
+}
+
+// ClaudeSonnet46Usage tracks input, output, cache tokens and costs specific to Claude Sonnet 4.6.
+type ClaudeSonnet46Usage struct {
+	// InputTokens is the number of input tokens consumed.
+	InputTokens int `json:"inputTokens"`
+	// OutputTokens is the number of output tokens generated.
+	OutputTokens int `json:"outputTokens"`
+	// CacheReadInputTokens is the number of cache read tokens.
+	CacheReadInputTokens int `json:"cacheReadInputTokens"`
+	// CacheCreationInputTokens is the number of cache creation tokens.
+	CacheCreationInputTokens int `json:"cacheCreationInputTokens"`
+	// WebSearchRequests is the count of web search requests.
+	WebSearchRequests int `json:"webSearchRequests"`
+	// CostUSD is the cost in USD.
+	CostUSD float64 `json:"costUSD"`
+	// ContextWindow is the size of the context window.
+	ContextWindow int `json:"contextWindow"`
+	// MaxOutputTokens is the maximum output tokens limit.
+	MaxOutputTokens int `json:"maxOutputTokens"`
 }
 
 // Failure returns an error if the Claude execution resulted in a failure.
@@ -189,4 +187,34 @@ func (r *ClaudeResult) PersistArtifact(ctx context.Context, artifactName string)
 		return "", nil
 	}
 	return PersistArtifactToFile(ctx, artifactName, r.RawResult)
+}
+
+const (
+	// artifactFileExtension is the extension applied to every persisted artifact file.
+	artifactFileExtension = ".md"
+	// artifactFilePermissions is the file mode used when writing artifact files.
+	artifactFilePermissions = 0o644
+)
+
+// artifactFilePath builds the destination path for an artifact within dir,
+// sanitizing artifactName so it is safe to use as a file name.
+func artifactFilePath(dir, artifactName string) string {
+	filename := utils.SanitizeName(artifactName) + artifactFileExtension
+	return filepath.Join(dir, filename)
+}
+
+// PersistArtifactToFile writes the artifact content to a file in the artifact directory specified in the context.
+// It returns the absolute path of the written file and any file system error encountered.
+// If the artifact directory is not configured in the context, it returns an empty path and a nil error.
+func PersistArtifactToFile(ctx context.Context, artifactName, content string) (string, error) {
+	dir, ok := ArtifactDir(ctx)
+	if !ok || dir == "" {
+		return "", nil
+	}
+	path := artifactFilePath(dir, artifactName)
+	Logger(ctx).Info("persisting agent artifact", "name", artifactName, "path", path)
+	if err := os.WriteFile(path, []byte(content), artifactFilePermissions); err != nil {
+		return "", fmt.Errorf("persist agent artifact: %w", err)
+	}
+	return path, nil
 }
