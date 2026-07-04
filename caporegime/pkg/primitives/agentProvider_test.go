@@ -18,19 +18,19 @@ func TestResolveProviderCmdLine(t *testing.T) {
 			name:     "ClaudeJsonProvider",
 			provider: ClaudeJsonProvider{},
 			wantCmd:  "claude",
-			wantArgs: []string{"-p", prompt, "--dangerously-skip-permissions", "--output-format", "--dangerously-skip-permissions"},
+			wantArgs: []string{"-p", prompt, "--permission-mode", "dontAsk", "--output-format", "json"},
 		},
 		{
 			name:     "ClaudeJsonProvider with AdditionalArgs",
 			provider: ClaudeJsonProvider{AdditionalArgs: []string{"--foo", "bar"}},
 			wantCmd:  "claude",
-			wantArgs: []string{"-p", prompt, "--dangerously-skip-permissions", "--output-format", "--dangerously-skip-permissions", "--foo", "bar"},
+			wantArgs: []string{"-p", prompt, "--permission-mode", "dontAsk", "--output-format", "json", "--foo", "bar"},
 		},
 		{
 			name:     "ClaudeJsonProvider with empty AdditionalArgs",
 			provider: ClaudeJsonProvider{AdditionalArgs: []string{}},
 			wantCmd:  "claude",
-			wantArgs: []string{"-p", prompt, "--dangerously-skip-permissions", "--output-format", "--dangerously-skip-permissions"},
+			wantArgs: []string{"-p", prompt, "--permission-mode", "dontAsk", "--output-format", "json"},
 		},
 		{
 			name:     "ClaudeDefaultProvider",
@@ -70,7 +70,7 @@ func TestResolveProviderCmdLine(t *testing.T) {
 func TestResolveProviderCmdLineEmptyPrompt(t *testing.T) {
 	t.Run("ClaudeJsonProvider empty prompt", func(t *testing.T) {
 		gotCmd, gotArgs := ClaudeJsonProvider{}.ResolveProviderCmdLine("")
-		wantArgs := []string{"-p", "", "--dangerously-skip-permissions", "--output-format", "--dangerously-skip-permissions"}
+		wantArgs := []string{"-p", "", "--permission-mode", "dontAsk", "--output-format", "json"}
 		if gotCmd != "claude" || !reflect.DeepEqual(gotArgs, wantArgs) {
 			t.Errorf("got (%v, %v), want (%v, %v)", gotCmd, gotArgs, "claude", wantArgs)
 		}
