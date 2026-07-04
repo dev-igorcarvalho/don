@@ -117,10 +117,7 @@ type ClaudeSonnet46Usage struct {
 
 // Failure returns an error if the Claude execution resulted in a failure.
 // If the ClaudeResponse is nil or there was no error, it returns nil.
-func (r *ClaudeResponse) Failure() error {
-	if r == nil {
-		return nil
-	}
+func (r ClaudeResponse) Failure() error {
 	if r.IsError {
 		return errors.New(r.RawResult)
 	}
@@ -129,19 +126,13 @@ func (r *ClaudeResponse) Failure() error {
 
 // Result returns the raw output string from the Claude model.
 // If the ClaudeResponse is nil, it returns an empty string.
-func (r *ClaudeResponse) Result() string {
-	if r == nil {
-		return ""
-	}
+func (r ClaudeResponse) Result() string {
 	return r.RawResult
 }
 
 // PersistArtifact writes the Claude result content to a file in the artifact directory.
 // It returns the file path of the persisted artifact and any filesystem error encountered.
 // If the ClaudeResponse is nil, it returns an empty string and a nil error.
-func (r *ClaudeResponse) PersistArtifact(ctx context.Context, artifactName string) (string, error) {
-	if r == nil {
-		return "", nil
-	}
+func (r ClaudeResponse) PersistArtifact(ctx context.Context, artifactName string) (string, error) {
 	return PersistArtifactToFile(ctx, artifactName, r.RawResult)
 }
