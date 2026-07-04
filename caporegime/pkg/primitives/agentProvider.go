@@ -15,6 +15,8 @@ const (
 	formatJSON = "json"
 	// flagDangerouslySkipPerms is the CLI flag to skip interactive permission prompts.
 	flagDangerouslySkipPerms = "--dangerously-skip-permissions"
+	flagPermissionMode       = "--permission-mode"
+	PermissionModeDontAsk    = "dontAsk"
 )
 
 // ClaudeJsonProvider implements the AgentProvider interface for the Claude CLI backend.
@@ -25,7 +27,7 @@ type ClaudeJsonProvider struct {
 
 // ResolveProviderCmdLine returns the command name and arguments to execute the Claude CLI for a given prompt.
 func (c ClaudeJsonProvider) ResolveProviderCmdLine(prompt string) (string, []string) {
-	baseArgs := []string{flagPrompt, prompt, flagDangerouslySkipPerms, flagOutputFormat, flagDangerouslySkipPerms}
+	baseArgs := []string{flagPrompt, prompt, flagPermissionMode, PermissionModeDontAsk, flagOutputFormat, formatJSON}
 	return resolveCmdLine(claudeCmd, baseArgs, c.AdditionalArgs)
 }
 

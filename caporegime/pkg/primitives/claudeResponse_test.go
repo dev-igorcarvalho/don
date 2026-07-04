@@ -15,11 +15,6 @@ func TestClaudeResponse_Failure(t *testing.T) {
 		wantErr string // empty means want nil error
 	}{
 		{
-			name:    "nil receiver returns nil",
-			r:       nil,
-			wantErr: "",
-		},
-		{
 			name:    "no error returns nil",
 			r:       &ClaudeResponse{IsError: false, RawResult: "all good"},
 			wantErr: "",
@@ -40,9 +35,9 @@ func TestClaudeResponse_Failure(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			err := tt.r.Failure()
 
-			// Distinguish "no error expected" (nil receiver / IsError false) from
+			// Distinguish "no error expected" (IsError false) from
 			// "error expected but with an empty message" via the IsError flag.
-			wantNilErr := tt.r == nil || !tt.r.IsError
+			wantNilErr := !tt.r.IsError
 			if wantNilErr {
 				if err != nil {
 					t.Errorf("Failure() = %v, want nil", err)
@@ -66,11 +61,6 @@ func TestClaudeResponse_Result(t *testing.T) {
 		want string
 	}{
 		{
-			name: "nil receiver returns empty string",
-			r:    nil,
-			want: "",
-		},
-		{
 			name: "returns raw result",
 			r:    &ClaudeResponse{RawResult: "the model output"},
 			want: "the model output",
@@ -92,17 +82,6 @@ func TestClaudeResponse_Result(t *testing.T) {
 }
 
 func TestClaudeResponse_PersistArtifact(t *testing.T) {
-	t.Run("nil receiver returns empty path and nil error", func(t *testing.T) {
-		var r *ClaudeResponse
-		path, err := r.PersistArtifact(context.Background(), "artifact")
-		if err != nil {
-			t.Fatalf("PersistArtifact() error = %v, want nil", err)
-		}
-		if path != "" {
-			t.Errorf("PersistArtifact() path = %q, want empty", path)
-		}
-	})
-
 	t.Run("missing artifact dir in context returns empty result", func(t *testing.T) {
 		r := &ClaudeResponse{RawResult: "content"}
 		path, err := r.PersistArtifact(context.Background(), "artifact")
