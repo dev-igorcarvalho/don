@@ -63,7 +63,7 @@ func TestArtifactFilePath(t *testing.T) {
 
 func TestPersistArtifactToFile(t *testing.T) {
 	t.Run("nil context returns empty result", func(t *testing.T) {
-		path, err := PersistArtifactToFile(nil, "test", "content")
+		path, err := PersistArtifactToFile(context.TODO(), "test", "content")
 		if err != nil {
 			t.Fatalf("PersistArtifactToFile() error = %v, want nil", err)
 		}
@@ -177,7 +177,11 @@ func TestPersistArtifactToFile(t *testing.T) {
 		if err := os.Chmod(roDir, 0o555); err != nil {
 			t.Fatalf("failed to chmod dir: %v", err)
 		}
-		defer os.Chmod(roDir, 0o755) // restore so TempDir cleanup can remove the directory
+		defer func() {
+			if err := os.Chmod(roDir, 0o755); err != nil {
+				t.Fatalf("failed to restore dir permissions: %v", err)
+			}
+		}() // restore so TempDir cleanup can remove the directory
 
 		ctx := context.WithValue(context.Background(), artifactDirKey{}, roDir)
 		path, err := PersistArtifactToFile(ctx, "test", "content")
